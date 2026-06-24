@@ -2908,6 +2908,17 @@ async function lookupTicket(code) {
                   ticket.name = mecGuest.name;
                 }
               }
+              // Also sync to guestMap WC entry if present (covers MEC bookings paid via WC)
+              const wcInvoiceId = booking.invoiceID || invId;
+              const wcGuestKey = `wc-${wcInvoiceId}`;
+              if (guestMap[wcGuestKey]) {
+                const wcTicketCode = `${wcGuestKey}-${placeNo}`;
+                if (!guestMap[wcGuestKey].checkedInTickets) guestMap[wcGuestKey].checkedInTickets = [];
+                if (!guestMap[wcGuestKey].checkedInTickets.includes(wcTicketCode)) {
+                  guestMap[wcGuestKey].checkedInTickets.push(wcTicketCode);
+                }
+                guestMap[wcGuestKey].checkedIn = guestMap[wcGuestKey].checkedInTickets.length >= (guestMap[wcGuestKey].qty || 1);
+              }
               // Update lead booking name if this was ticket 1 (place 1)
               if ((placeNo === '1' || placeNo === 1) && mecGuest.name && mecGuest.name !== 'Guest') {
                 // Don't overwrite lead name — keep Louise as lead, only update ticket name
