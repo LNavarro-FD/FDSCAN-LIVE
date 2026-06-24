@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v7.6</title>
+<title>FD Door Scanner v7.7</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -539,7 +539,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v7.6 LIVE</div>
+    <div class="brand-sub">Door Scanner · v7.7 LIVE</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -555,7 +555,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v7.6 LIVE</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v7.7 LIVE</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -878,7 +878,7 @@ input::placeholder { color: #999; }
 // ═══════════════════════════════════════════
 //  AUTO-UPDATE CHECK
 // ═══════════════════════════════════════════
-const APP_VERSION = '7.6';
+const APP_VERSION = '7.7';
 (function checkForUpdate() {
   fetch(window.location.href.split('?')[0] + '?_v=' + Date.now(), { cache: 'no-store' })
     .then(r => r.text())
@@ -1491,18 +1491,21 @@ async function loadGuestList() {
           if (guestMap[wcGuestKey]) delete guestMap[wcGuestKey];
         }
         const leadName = data.attendees[0]?.name || '';
+        const eventDay = detectDay('', data.eventId);
+        const firstTicketName = data.attendees[0]?.ticket_name || 'MEC Ticket';
+        const isVipBooking = /vip/i.test(firstTicketName);
         bookingMap[bid] = {
           bookingId: bid, invoiceID: data.inv,
           mecInvoiceID: data.mecInv,
           name: leadName, email: data.attendees[0]?.email || '',
-          eventTitle: '', eventDay: '',
+          eventTitle: firstTicketName, eventDay: eventDay,
           _eventId: data.eventId,
           tickets: [], source: 'mec', isComp: false, isTM: false
         };
         invoiceMap[data.inv] = bookingMap[bid];
         if (data.mecInv && data.mecInv !== data.inv) invoiceMap[data.mecInv] = bookingMap[bid];
         data.attendees.forEach((a, idx) => {
-          const ticketName = a.ticket_name || 'MEC Ticket';
+          const ticketName = a.ticket_name || firstTicketName;
           const isVip = /vip/i.test(ticketName);
           bookingMap[bid].tickets.push({
             key: `${bid}-${idx+1}`, attendeeKey: String(idx+1),
@@ -1514,6 +1517,23 @@ async function loadGuestList() {
         });
         // Set booking-level VIP if any ticket is VIP
         if (bookingMap[bid].tickets.some(t => t.isVip)) bookingMap[bid].isVip = true;
+        // Add to guestMap so guest list renders this booking
+        const qty = data.attendees.length || 1;
+        const checkedInTickets = data.attendees
+          .map((a, idx) => a.checked_in ? `${bid}-${idx+1}` : null)
+          .filter(Boolean);
+        guestMap[bid] = {
+          id: bid, name: leadName, email: data.attendees[0]?.email || '',
+          ticketName: firstTicketName, eventDay: eventDay,
+          qty: qty, checkedIn: checkedInTickets.length >= qty,
+          checkedInTickets: checkedInTickets,
+          isVip: isVipBooking, isComp: false, isTM: false,
+          orderNumber: data.inv, _eventId: data.eventId,
+          source: 'mec'
+        };
+        if (data.attendees[0]?.email && !emailMap[data.attendees[0].email]) {
+          emailMap[data.attendees[0].email] = guestMap[bid];
+        }
         bulk2Changed = true;
       } else {
         data.attendees.forEach((a, idx) => {
