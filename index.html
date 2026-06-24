@@ -1469,7 +1469,7 @@ async function loadGuestList() {
 
     // Now process bulk2 (may already be resolved or still pending)
     const bd = await bulk2Promise;
-    const keepEventIds = new Set(['30589','30590','30591']);
+    const keepEventIds = new Set(['35616','35636','35637','35638']); // HRR 2026 live event IDs
     console.log('bulk2 total checkins:', (bd.checkins||[]).length);
     const bulkByBooking = {};
     (bd.checkins || []).forEach(c => {
