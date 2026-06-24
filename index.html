@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v7.4</title>
+<title>FD Door Scanner v7.5</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -539,7 +539,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v7.4 LIVE</div>
+    <div class="brand-sub">Door Scanner · v7.5 LIVE</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -555,7 +555,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v7.4 LIVE</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v7.5 LIVE</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -878,7 +878,7 @@ input::placeholder { color: #999; }
 // ═══════════════════════════════════════════
 //  AUTO-UPDATE CHECK
 // ═══════════════════════════════════════════
-const APP_VERSION = '7.4';
+const APP_VERSION = '7.5';
 (function checkForUpdate() {
   fetch(window.location.href.split('?')[0] + '?_v=' + Date.now(), { cache: 'no-store' })
     .then(r => r.text())
@@ -1344,45 +1344,10 @@ async function loadGuestList() {
       .then(r => { console.log('bulk2 status:', r.status); return r.ok ? r.json() : {checkins:[]}; })
       .catch(e => { console.warn('bulk2 fetch error:', e); return {checkins:[]}; });
 
-    const wcTimeout = new Promise(resolve => setTimeout(() => { console.warn('WC fetch timed out'); resolve([]); }, 8000));
-    const wcPromise = fetchWooOrders();
-
-    // Wait for WC only (with timeout) — render initial guest list from WC + sheets
-    const [mecGuests, wcGuests] = await Promise.all([
-      Promise.resolve({}),
-      Promise.race([wcPromise, wcTimeout])
-    ]);
-
-    // Placeholder so bulk2 processing below has a bulkData variable
+    // WC fetch disabled — all tickets via MEC/bulk2
+    console.log('WC fetch disabled — using bulk2 as primary source');
+    const wcGuests = [];
     const bulkData = {checkins:[]};
-
-    // When WC completes late, re-render
-    wcPromise.then(lateWcGuests => {
-      if (lateWcGuests && lateWcGuests.length > wcGuests.length) {
-        console.log('WC completed late — re-rendering with', lateWcGuests.length, 'orders');
-        lateWcGuests.forEach(g => {
-          const wcKey = `wc-${g.orderNumber}`;
-          if (!bookingMap[wcKey] && !invoiceMap[String(g.orderNumber)]) {
-            g._source = 'wc';
-            guestMap[`wc-${g.orderNumber}`] = g;
-            if (g.email && !emailMap[g.email]) emailMap[g.email] = g;
-            bookingMap[wcKey] = {
-              bookingId: wcKey, invoiceID: g.orderNumber,
-              name: g.name, email: g.email,
-              eventTitle: g.ticketName, eventDay: g.eventDay,
-              tickets: Array.from({length: g.qty || 1}, (_, i) => ({
-                key: `${wcKey}-${i+1}`, attendeeKey: String(i+1),
-                name: g.name, ticketName: g.ticketName,
-                isVip: false, checkedIn: false
-              })),
-              source: 'wc', isComp: false, isTM: false
-            };
-            if (g.orderNumber) invoiceMap[String(g.orderNumber)] = bookingMap[wcKey];
-          }
-        });
-        renderGuestList(); updateGLStats();
-      }
-    }).catch(() => {});
 
     // 2b. bulk2 is processed inline after main render below
 
