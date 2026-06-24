@@ -1373,7 +1373,7 @@ async function loadGuestList() {
               tickets: Array.from({length: g.qty || 1}, (_, i) => ({
                 key: `${wcKey}-${i+1}`, attendeeKey: String(i+1),
                 name: g.name, ticketName: g.ticketName,
-                isVip: false, checkedIn: false
+                isVip: false, checkedIn: (guestMap[`wc-${g.orderNumber}`]?.checkedInTickets?.length > i) || false
               })),
               source: 'wc', isComp: false, isTM: false
             };
