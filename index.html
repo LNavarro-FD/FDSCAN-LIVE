@@ -3111,7 +3111,7 @@ function detectDay(ticketName) {
 }
 
 async function mecLookupAndCheckin(code) {
-  if (!cfg.mecKey || !cfg.siteUrl) return null;
+  if (!cfg.siteUrl) return null;
 
   let parsed = parseMecQrUrl(code);
   if (!parsed) return null;
@@ -3122,133 +3122,51 @@ async function mecLookupAndCheckin(code) {
     if (!parsed) return null;
   }
 
-  try {
-    // GET all invoice attendees with pagination
-    let attendees = [];
-    let page = 1;
-    while (true) {
-      const mecInvHeaders = { 'X-MEC-KEY': cfg.mecKey };
-      if (cfg.wcKey && cfg.wcSecret) {
-        mecInvHeaders['Authorization'] = 'Basic ' + btoa(cfg.wcKey + ':' + cfg.wcSecret);
-      }
-      const r = await fetch(
-        `${cfg.siteUrl}/wp-json/mec-utility/v1/invoices/${parsed.invoiceID}/attendees?per_page=100&page=${page}`,
-        { headers: mecInvHeaders }
-      );
-      if (!r.ok) {
-        console.warn('MEC invoice attendees failed:', r.status);
-        break;
-      }
-      const data = await r.json();
-      if (!data) break;
-      const batch = Array.isArray(data) ? data : (data.attendees || data.data || []);
-      if (!batch.length) break;
-      attendees = attendees.concat(batch);
-      // Check if there are more pages
-      const total = parseInt(r.headers.get('X-WP-Total') || r.headers.get('x-wp-total') || '0');
-      if (!total || attendees.length >= total) break;
-      page++;
-    }
+  // Skip mec-utility API (too slow/blocked on live) — build guest from bulk2 data directly
+  const invoiceID = parsed.invoiceID;
+  const place = parsed.place;
+  if (!invoiceID) return null;
 
-    console.log(`MEC invoice ${parsed.invoiceID}: found ${attendees.length} attendees`);
+  const bookingMapEntry = invoiceMap[String(invoiceID)] || bookingMap[String(invoiceID)];
+  
+  // Get per-attendee name from bulk2 cache or bookingMap
+  const cachedName = mecAttendeeCache[`${invoiceID}:${place}`];
+  const bookingMapTicket = bookingMapEntry?.tickets?.find(t => String(t.attendeeKey) === String(place))
+    || bookingMapEntry?.tickets?.[parseInt(place) - 1];
+  const bookingMapName = bookingMapTicket?.name || bookingMapEntry?.name || '';
+  const name = cachedName || bookingMapName || 'Guest';
 
-    // Find the specific attendee by place number
-    let attendee = null;
-    if (parsed.place && attendees.length > 0) {
-      attendee = attendees.find(a => 
-        String(a.place)        === String(parsed.place) || 
-        String(a.ticket_place) === String(parsed.place) ||
-        String(a.attendee_place) === String(parsed.place) ||
-        String(a.index)        === String(parseInt(parsed.place) - 1) ||
-        String(a.id)           === String(parsed.place)
-      );
-      // If still not found, try by position in array
-      if (!attendee) {
-        const placeNum = parseInt(parsed.place);
-        if (!isNaN(placeNum) && placeNum > 0 && placeNum <= attendees.length) {
-          attendee = attendees[placeNum - 1];
-        }
-      }
-    }
-    // Fallback to first attendee if place not found — but prefer bookingMap name
-    if (!attendee && attendees.length > 0) attendee = attendees[0];
-    if (!attendee) {
-      attendee = { email: parsed.email };
-    }
+  // Get ticket name from bookingMap
+  let ticketName = bookingMapTicket?.ticketName || bookingMapEntry?.eventTitle || 'MEC Ticket';
+  const isVip = /vip/i.test(ticketName) || !!(bookingMapTicket?.isVip);
 
-    const bookingMapEntry = invoiceMap[parsed.invoiceID] || bookingMap[parsed.invoiceID];
-    // Get the specific ticket for this place to find the correct attendee name
-    const bookingMapTicket = bookingMapEntry?.tickets?.find(t => String(t.attendeeKey) === String(parsed.place))
-                          || bookingMapEntry?.tickets?.[parseInt(parsed.place) - 1];
-    const bookingMapName  = bookingMapTicket?.name || (bookingMapEntry ? bookingMapEntry.name : '');
+  const ticketKey = `${invoiceID}-${place || '0'}`;
+  const checkedIn = !!(bookingMapTicket?.checkedIn);
 
-    // Check mecAttendeeCache — populated from bulk2, keyed by mec_invoice_id:place
-    // This gives us the correct per-attendee name even before/instead of bookingMap
-    const cachedName = mecAttendeeCache[`${parsed.invoiceID}:${parsed.place}`];
+  console.log(`mecLookupAndCheckin (bulk2 mode): invoice=${invoiceID} place=${place} name=${name}`);
 
-    // Use bookingMap name as primary source if available (it has per-attendee names from mec_attendees)
-    // Fall back to MEC API attendee fields only if bookingMap has no name
-    const apiName = [attendee.first_name || '', attendee.last_name || ''].filter(Boolean).join(' ').trim()
-                  || attendee.name || '';
-    // Priority: 1) cachedName from bulk2 (most reliable), 2) ticket-level bookingMap name, 3) API name, 4) booking lead name
-    const name = cachedName
-                  || (bookingMapName && bookingMapName !== bookingMapEntry?.name ? bookingMapName : null)
-                  || apiName
-                  || bookingMapName
-                  || 'Guest';
-    
-    // Get ticket name — try attendee field first, then always fall back to bookingMap
-    let ticketName = attendee.ticket_name || attendee.ticket_label || attendee.type || '';
-
-    if (!ticketName) {
-      // Look up from bookingMap by place/attendeeKey
-      const bk = bookingMapEntry || bookingMap[parsed.invoiceID];
-      if (bk) {
-        const t = bk.tickets.find(t => String(t.attendeeKey) === String(parsed.place))
-               || bk.tickets[parseInt(parsed.place) - 1];
-        if (t) ticketName = t.ticketName;
-      }
-    }
-
-    if (!ticketName && attendee.ticket_id) {
-      // Look up from upcomingEvents ticket list
-      for (const ev of upcomingEvents) {
-        const evTicket = (ev.tickets || []).find(t => String(t.id) === String(attendee.ticket_id));
-        if (evTicket) { ticketName = evTicket.name; break; }
-      }
-    }
-
-    if (!ticketName) ticketName = 'MEC Ticket';
-    
-    const checkedIn  = !!(attendee.checked_in || attendee.checkin_status || attendee.status === 'checked_in');
-    const ticketKey  = `${parsed.invoiceID}-${parsed.place || '0'}`;
-
-    return {
-      id: parsed.invoiceID,
-      orderNumber: String(parsed.invoiceID),
-      name,
-      email: (attendee.email || parsed.email || '').toLowerCase(),
-      ticketName,
-      isVip: /vip/i.test(ticketName) || !!(bookingMapTicket?.isVip),
-      isTM: false, isComp: false,
-      table: attendee.table || null,
-      guestOf: null, hostCategory: null, guestNotes: null,
-      qty: attendees.length || parseInt(parsed.place) || 1,
-      checkedInTickets: checkedIn ? [ticketKey] : [],
-      checkedIn,
-      eventDay: detectDay(ticketName),
-      ticketStartTime: attendee.start_time || null,
-      _mecTicket: true,
-      _mecCode: code,
-      _invoiceID: parsed.invoiceID,
-      _place: parsed.place,
-      _hash: parsed.hash,
-      _ticketKey: ticketKey
-    };
-  } catch(e) {
-    console.warn('MEC lookup failed:', e.message);
-    return null;
-  }
+  return {
+    id: invoiceID,
+    orderNumber: String(invoiceID),
+    name,
+    email: (bookingMapEntry?.email || parsed.email || '').toLowerCase(),
+    ticketName,
+    isVip,
+    isTM: false, isComp: false,
+    table: null, guestOf: null, hostCategory: null, guestNotes: null,
+    qty: bookingMapEntry?.tickets?.length || parseInt(place) || 1,
+    checkedInTickets: checkedIn ? [ticketKey] : [],
+    checkedIn,
+    eventDay: detectDay(ticketName),
+    ticketStartTime: null,
+    _mecTicket: true,
+    _mecCode: code,
+    _invoiceID: invoiceID,
+    _place: place,
+    _hash: parsed.hash,
+    _ticketKey: ticketKey,
+    _eventId: bookingMapEntry?._eventId || ''
+  };
 }
 
 async function mecWriteCheckin(code, mecGuest) {
