@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RF QR Tool — Funky Dory HRR 2026</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --pink: #FF4B7B;
+    --navy: #22224C;
+    --light-pink: #F2B2E5;
+    --orange: #FF6036;
+    --yellow: #FFEC00;
+    --bg: #F7F7FB;
+    --white: #fff;
+    --border: #E0E0EE;
+    --text: #22224C;
+    --muted: #888;
+    --ok: #22C55E;
+  }
+  body { font-family: 'Futura', 'Century Gothic', Trebuchet MS, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+  
+  header { background: var(--navy); color: white; padding: 20px 24px; display: flex; align-items: center; gap: 16px; }
+  header h1 { font-size: 18px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+  header p { font-size: 12px; opacity: .6; margin-top: 2px; }
+  .pink { color: var(--pink); }
+
+  .container { max-width: 960px; margin: 0 auto; padding: 24px; }
+
+  .card { background: var(--white); border-radius: 16px; padding: 24px; margin-bottom: 20px; border: 1px solid var(--border); }
+  .card h2 { font-size: 14px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; color: var(--navy); margin-bottom: 16px; }
+
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; border-radius: 10px; border: none; font-family: inherit; font-weight: 800; font-size: 14px; cursor: pointer; transition: opacity .15s; }
+  .btn:hover { opacity: .85; }
+  .btn-primary { background: var(--pink); color: white; }
+  .btn-navy { background: var(--navy); color: white; }
+  .btn-outline { background: none; border: 2px solid var(--navy); color: var(--navy); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+
+  .status { padding: 12px 16px; border-radius: 10px; font-size: 13px; font-weight: 700; margin-bottom: 16px; }
+  .status.info { background: #EEF2FF; color: var(--navy); }
+  .status.ok { background: #F0FDF4; color: #166534; }
+  .status.warn { background: #FFFBEB; color: #92400E; }
+  .status.error { background: #FEF2F2; color: #991B1B; }
+
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+  .stat { background: var(--white); border-radius: 12px; padding: 16px; border: 1px solid var(--border); text-align: center; }
+  .stat-num { font-size: 28px; font-weight: 900; color: var(--pink); }
+  .stat-label { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { background: var(--navy); color: white; padding: 10px 12px; text-align: left; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tr:hover td { background: #F7F7FB; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+  .badge-new { background: #DCFCE7; color: #166534; }
+  .badge-issued { background: #F3F4F6; color: #6B7280; }
+  .badge-ladies { background: #DBEAFE; color: #1E40AF; }
+  .badge-ibiza { background: #FFE4E6; color: #9F1239; }
+  .badge-studio { background: #F3E8FF; color: #6B21A8; }
+  .badge-brunch { background: #FEF9C3; color: #854D0E; }
+
+  .qr-thumb { width: 48px; height: 48px; border-radius: 6px; }
+
+  .actions { display: flex; gap: 12px; flex-wrap: wrap; }
+
+  .csv-area { width: 100%; min-height: 120px; font-family: monospace; font-size: 12px; border: 1px solid var(--border); border-radius: 8px; padding: 12px; resize: vertical; color: var(--text); }
+
+  .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.3); border-top-color: white; border-radius: 50%; animation: spin .6s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .empty { text-align: center; padding: 40px; color: var(--muted); font-size: 14px; }
+
+  @media (max-width: 600px) {
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .actions { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>FUNKY DORY <span class="pink">·</span> RF QR TOOL</h1>
+    <p>Remenham Farm ticket QR code manager · HRR 2026 · LIVE</p>
+  </div>
+</header>
+
+<div class="container">
+
+  <div class="card">
+    <h2>Step 1 — Load Sheet Data</h2>
+    <div id="load-status" class="status info">Click Load to fetch the latest RF sheet data and check against issued QRs.</div>
+    <button class="btn btn-primary" id="load-btn" onclick="loadData()">
+      <span id="load-spinner" style="display:none" class="spinner"></span>
+      Load Sheet Data
+    </button>
+  </div>
+
+  <div id="stats-section" style="display:none">
+    <div class="stats">
+      <div class="stat"><div class="stat-num" id="stat-total">0</div><div class="stat-label">Total Tickets</div></div>
+      <div class="stat"><div class="stat-num" id="stat-new" style="color:var(--ok)">0</div><div class="stat-label">New (unsent)</div></div>
+      <div class="stat"><div class="stat-num" id="stat-issued" style="color:var(--muted)">0</div><div class="stat-label">Already Issued</div></div>
+      <div class="stat"><div class="stat-num" id="stat-events">0</div><div class="stat-label">Events</div></div>
+    </div>
+  </div>
+
+  <div id="results-section" style="display:none">
+    <div class="card">
+      <h2>New Tickets — Ready to Issue</h2>
+      <div id="new-status" class="status ok"></div>
+      <div id="new-table-wrap"></div>
+      <br>
+      <div class="actions">
+        <button class="btn btn-primary" id="export-btn" onclick="exportCSV()">⬇ Export CSV for Mailchimp</button>
+        <button class="btn btn-navy" id="copy-issued-btn" onclick="copyIssuedRows()">📋 Copy Issued Tab rows</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Paste into RF Issued Tab</h2>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">After exporting, paste these rows into the RF Issued tab in Google Sheets to record what's been sent.</p>
+      <textarea class="csv-area" id="issued-csv" readonly placeholder="Click 'Copy Issued Tab rows' above..."></textarea>
+    </div>
+
+    <div class="card">
+      <h2>All Tickets</h2>
+      <div id="all-table-wrap"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const SHEET_ID = '1qy9_HFxFZg9L3M2UzV_cSMesZp6UdYJZmlR-k9d3OCc';
+const RF_GID = '630690329';
+const ISSUED_GID = '1028175837';
+const APP_URL = 'https://lnavarro-fd.github.io/FDSCAN-LIVE'; // LIVE
+
+let allTickets = [];
+let issuedIds = new Set();
+
+function qrUrl(itemId) {
+  const data = encodeURIComponent(`${APP_URL}?rf=${itemId}`);
+  return `https://api.qrserver.com/v1/create-qr-code/?data=${data}&size=300x300&margin=10`;
+}
+
+function eventBadge(itemName) {
+  const n = (itemName || '').toLowerCase();
+  if (n.includes('friday') || n.includes('ibiza') || n.includes('white party')) return '<span class="badge badge-ibiza">Ibiza</span>';
+  if (n.includes('saturday') || n.includes('studio 54')) return '<span class="badge badge-studio">Studio 54</span>';
+  if (n.includes('sunday') || n.includes('brunch')) return '<span class="badge badge-brunch">Brunch</span>';
+  if (n.includes('thursday') || n.includes('ladies')) return '<span class="badge badge-ladies">Ladies Day</span>';
+  return '<span class="badge badge-issued">Unknown</span>';
+}
+
+function eventName(itemName) {
+  const n = (itemName || '').toLowerCase();
+  if (n.includes('friday') || n.includes('ibiza') || n.includes('white party')) return 'Ibiza White Party';
+  if (n.includes('saturday') || n.includes('studio 54')) return 'Studio 54';
+  if (n.includes('sunday') || n.includes('brunch')) return 'Brunch on the Banks';
+  if (n.includes('thursday') || n.includes('ladies')) return 'Ladies Day';
+  return itemName;
+}
+
+async function fetchCSV(gid) {
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${gid}&t=${Date.now()}`;
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`Sheet fetch failed: ${r.status}`);
+  const text = await r.text();
+  return text.split('\n').map(row => {
+    const cells = [];
+    let inQ = false, cell = '';
+    for (const ch of row) {
+      if (ch === '"') { inQ = !inQ; continue; }
+      if (ch === ',' && !inQ) { cells.push(cell.trim()); cell = ''; continue; }
+      cell += ch;
+    }
+    cells.push(cell.trim());
+    return cells;
+  });
+}
+
+async function loadData() {
+  const btn = document.getElementById('load-btn');
+  const spinner = document.getElementById('load-spinner');
+  btn.disabled = true;
+  spinner.style.display = 'inline-block';
+  document.getElementById('load-status').className = 'status info';
+  document.getElementById('load-status').textContent = 'Loading RF sheet...';
+
+  try {
+    const rfRows = await fetchCSV(RF_GID);
+    const dataRows = rfRows.slice(1).filter(r => r[0] && r[16]);
+
+    let issuedRows = [];
+    try {
+      issuedRows = await fetchCSV(ISSUED_GID);
+      issuedRows.slice(1).forEach(r => { if (r[0]) issuedIds.add(String(r[0]).trim()); });
+    } catch(e) {}
+
+    allTickets = dataRows.map(r => ({
+      itemId:    (r[38] || '').trim(),
+      orderId:   (r[0]  || '').trim(),
+      firstName: (r[16] || '').trim(),
+      lastName:  (r[17] || '').trim(),
+      name:      [(r[16]||'').trim(), (r[17]||'').trim()].filter(Boolean).join(' '),
+      email:     (r[20] || '').trim().toLowerCase(),
+      itemName:  (r[40] || '').trim(),
+      qty:       parseInt(r[43] || '1'),
+    })).filter(t => t.itemId && t.name && t.email);
+
+    renderResults();
+
+    document.getElementById('load-status').className = 'status ok';
+    document.getElementById('load-status').textContent = `✓ Loaded ${allTickets.length} tickets. ${issuedIds.size} already issued.`;
+
+  } catch(e) {
+    document.getElementById('load-status').className = 'status error';
+    document.getElementById('load-status').textContent = `Error: ${e.message}`;
+  }
+
+  btn.disabled = false;
+  spinner.style.display = 'none';
+}
+
+function renderResults() {
+  const newTickets = allTickets.filter(t => !issuedIds.has(t.itemId));
+  const issuedTickets = allTickets.filter(t => issuedIds.has(t.itemId));
+
+  document.getElementById('stat-total').textContent = allTickets.length;
+  document.getElementById('stat-new').textContent = newTickets.length;
+  document.getElementById('stat-issued').textContent = issuedTickets.length;
+  const events = new Set(allTickets.map(t => eventName(t.itemName)));
+  document.getElementById('stat-events').textContent = events.size;
+  document.getElementById('stats-section').style.display = '';
+  document.getElementById('results-section').style.display = '';
+
+  document.getElementById('new-status').textContent = newTickets.length > 0
+    ? `${newTickets.length} new tickets ready to issue.`
+    : 'All tickets have already been issued — nothing new to send.';
+
+  document.getElementById('new-table-wrap').innerHTML = newTickets.length > 0 ? `
+    <table>
+      <thead><tr><th>QR</th><th>Name</th><th>Email</th><th>Event</th><th>Item ID</th></tr></thead>
+      <tbody>
+        ${newTickets.map(t => `
+          <tr>
+            <td><img class="qr-thumb" src="${qrUrl(t.itemId)}" alt="QR"></td>
+            <td><strong>${t.name}</strong></td>
+            <td>${t.email}</td>
+            <td>${eventBadge(t.itemName)}</td>
+            <td style="color:var(--muted);font-size:12px">${t.itemId}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>` : '<div class="empty">No new tickets to issue.</div>';
+
+  document.getElementById('all-table-wrap').innerHTML = `
+    <table>
+      <thead><tr><th>Status</th><th>Name</th><th>Email</th><th>Event</th><th>Item ID</th></tr></thead>
+      <tbody>
+        ${allTickets.map(t => `
+          <tr>
+            <td>${issuedIds.has(t.itemId) ? '<span class="badge badge-issued">Issued</span>' : '<span class="badge badge-new">New</span>'}</td>
+            <td><strong>${t.name}</strong></td>
+            <td>${t.email}</td>
+            <td>${eventBadge(t.itemName)}</td>
+            <td style="color:var(--muted);font-size:12px">${t.itemId}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>`;
+}
+
+function exportCSV() {
+  const newTickets = allTickets.filter(t => !issuedIds.has(t.itemId));
+  if (!newTickets.length) { alert('No new tickets to export.'); return; }
+
+  const rows = [['First Name', 'Last Name', 'Email', 'Event', 'QR Code URL', 'Item ID']];
+  newTickets.forEach(t => {
+    rows.push([t.firstName, t.lastName, t.email, eventName(t.itemName), qrUrl(t.itemId), t.itemId]);
+  });
+
+  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `RF_QR_Mailchimp_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+}
+
+function copyIssuedRows() {
+  const newTickets = allTickets.filter(t => !issuedIds.has(t.itemId));
+  if (!newTickets.length) { alert('No new tickets to record.'); return; }
+
+  const rows = [['item_id', 'order_id', 'name', 'email', 'event', 'qr_url', 'issued_date']];
+  const today = new Date().toISOString().slice(0,10);
+  newTickets.forEach(t => {
+    rows.push([t.itemId, t.orderId, t.name, t.email, eventName(t.itemName), qrUrl(t.itemId), today]);
+  });
+
+  const csv = rows.map(r => r.join('\t')).join('\n');
+  document.getElementById('issued-csv').value = csv;
+  navigator.clipboard.writeText(csv).then(() => {
+    document.getElementById('copy-issued-btn').textContent = '✓ Copied!';
+    setTimeout(() => document.getElementById('copy-issued-btn').textContent = '📋 Copy Issued Tab rows', 2000);
+  });
+}
+</script>
+</body>
+</html>
