@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v7.8</title>
+<title>FD Door Scanner v7.9</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -539,7 +539,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v7.8 LIVE</div>
+    <div class="brand-sub">Door Scanner · v7.9 LIVE</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -555,7 +555,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v7.8 LIVE</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v7.9 LIVE</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -878,7 +878,7 @@ input::placeholder { color: #999; }
 // ═══════════════════════════════════════════
 //  AUTO-UPDATE CHECK
 // ═══════════════════════════════════════════
-const APP_VERSION = '7.8';
+const APP_VERSION = '7.9';
 (function checkForUpdate() {
   fetch(window.location.href.split('?')[0] + '?_v=' + Date.now(), { cache: 'no-store' })
     .then(r => r.text())
@@ -913,12 +913,12 @@ let glSubFilter = 'all';
 
 // Door ticket counters (persisted in localStorage)
 const DOOR_TICKETS = {
-  'FD-DOOR-LD-DAY':  { label: 'Ladies Day · Day',      event: '30589', limit: 500 },
-  'FD-DOOR-LD-EVE':  { label: 'Ladies Day · Evening',  event: '30589', limit: 500 },
-  'FD-DOOR-IB-DAY':  { label: 'Ibiza · Day',           event: '30590', limit: 500 },
-  'FD-DOOR-IB-EVE':  { label: 'Ibiza · Evening',       event: '30590', limit: 500 },
-  'FD-DOOR-S54-DAY': { label: 'Studio 54 · Day',       event: '30591', limit: 500 },
-  'FD-DOOR-S54-EVE': { label: 'Studio 54 · Evening',   event: '30591', limit: 500 },
+  'FD-DOOR-LD-DAY':  { label: 'Ladies Day · Day',      event: '35616', limit: 500 },
+  'FD-DOOR-LD-EVE':  { label: 'Ladies Day · Evening',  event: '35616', limit: 500 },
+  'FD-DOOR-IB-DAY':  { label: 'Ibiza · Day',           event: '35636', limit: 500 },
+  'FD-DOOR-IB-EVE':  { label: 'Ibiza · Evening',       event: '35636', limit: 500 },
+  'FD-DOOR-S54-DAY': { label: 'Studio 54 · Day',       event: '35637', limit: 500 },
+  'FD-DOOR-S54-EVE': { label: 'Studio 54 · Evening',   event: '35637', limit: 500 },
 };
 function getDoorCounts() {
   try { return JSON.parse(localStorage.getItem('fd_door_counts') || '{}'); } catch(e) { return {}; }
@@ -1588,9 +1588,9 @@ function sheetEventToId(eventStr) {
   if (!eventStr) return [];
   const s = eventStr.trim().toLowerCase();
   if (s === 'all') return upcomingEvents.map(e => String(e.id));
-  if (s.includes('ladies')) return ['30589'];
-  if (s.includes('ibiza') || s.includes('white party')) return ['30590'];
-  if (s.includes('studio')) return ['30591'];
+  if (s.includes('ladies')) return ['35616'];
+  if (s.includes('ibiza') || s.includes('white party')) return ['35636'];
+  if (s.includes('studio')) return ['35637'];
   if (s.includes('brunch')) return ['30592'];
   return [];
 }
@@ -1758,9 +1758,9 @@ async function loadCompGuests() {
 
     // Tab 3: Resources — Section(0)|Status(1)|First Name(2)|Last Name(3)|...|Thu(11,12,13)|Fri(14,15,16)|Sat(17,18,19)
     const DAY_COLS = [
-      { eventId: '30589', indices: [11,12,13], label: 'Thu' },
-      { eventId: '30590', indices: [14,15,16], label: 'Fri' },
-      { eventId: '30591', indices: [17,18,19], label: 'Sat' },
+      { eventId: '35616', indices: [11,12,13], label: 'Thu' },
+      { eventId: '35636', indices: [14,15,16], label: 'Fri' },
+      { eventId: '35637', indices: [17,18,19], label: 'Sat' },
     ];
     try {
       const rows = await fetchSheetTab(SHEET_TABS.resources);
@@ -1966,16 +1966,16 @@ let showAll = false;
 function showWristbandToast(booking, ticket) {
   const toastEvId = String(booking._eventId || '');
   const toastCols = {
-    '30589': { bg: '#5BB8E8', name: 'Sky Blue · Ladies Day' },
-    '30590': { bg: '#F04E30', name: 'Coral · Ibiza' },
-    '30591': { bg: '#E91E8C', name: 'Hot Pink · Studio 54' },
+    '35616': { bg: '#5BB8E8', name: 'Sky Blue · Ladies Day' },
+    '35636': { bg: '#F04E30', name: 'Coral · Ibiza' },
+    '35637': { bg: '#E91E8C', name: 'Hot Pink · Studio 54' },
   };
   let evCol = toastCols[toastEvId];
   if (!evCol) {
     const t = ((ticket.ticketName||'') + ' ' + (booking.eventTitle||'')).toLowerCase();
-    if (t.includes('ladies')) evCol = toastCols['30589'];
-    else if (t.includes('ibiza') || t.includes('white party')) evCol = toastCols['30590'];
-    else if (t.includes('studio')) evCol = toastCols['30591'];
+    if (t.includes('ladies')) evCol = toastCols['35616'];
+    else if (t.includes('ibiza') || t.includes('white party')) evCol = toastCols['35636'];
+    else if (t.includes('studio')) evCol = toastCols['35637'];
   }
   const entryType = ticket.entryType || booking.entryType || (ticket.isVip ? 'VIP' : (/vip/i.test(ticket.ticketName || booking.eventTitle || '') ? 'VIP' : 'GE'));
   const isEvening = (function(s){return /evening/i.test(s)||/access only/i.test(s);})(ticket.ticketName || booking.eventTitle || '');
@@ -3418,7 +3418,7 @@ const WRISTBAND_IMGS = {
 function getWristbandKey(evId, entryType) {
   const et = (entryType || 'GE').toLowerCase();
   const typeKey = et === 'vip' ? 'vip' : et === 'aaa' ? 'aaa' : et === 'staff' ? 'staff' : 'ge';
-  const evMap = { '30589': 'ld', '30590': 'ibiza', '30591': 's54' };
+  const evMap = { '35616': 'ld', '35636': 'ibiza', '35637': 's54' };
   const evKey = evMap[String(evId)];
   if (!evKey) return null;
   return `${evKey}_${typeKey}`;
@@ -3432,9 +3432,9 @@ function showEnt(g) {
   let evId = String(g._eventId || '');
   if (!evId || evId === 'undefined') {
     const t = ((g.ticketName || '') + ' ' + (g.eventTitle || '')).toLowerCase();
-    if (t.includes('ladies')) evId = '30589';
-    else if (t.includes('ibiza') || t.includes('white party')) evId = '30590';
-    else if (t.includes('studio')) evId = '30591';
+    if (t.includes('ladies')) evId = '35616';
+    else if (t.includes('ibiza') || t.includes('white party')) evId = '35636';
+    else if (t.includes('studio')) evId = '35637';
   }
 
   const entryType = (g.entryType || (g.isVip ? 'VIP' : 'GE')).toUpperCase();
@@ -3444,7 +3444,7 @@ function showEnt(g) {
   const iconEl = el.querySelector('.eb-icon');
   const imgHtml = wbSrc ? `<img src="${wbSrc}">` : null;
 
-  const evColours = { '30589': '#5BB8E8', '30590': '#F04E30', '30591': '#E91E8C' };
+  const evColours = { '35616': '#5BB8E8', '35636': '#F04E30', '35637': '#E91E8C' };
 
   if (entryType === 'VIP') {
     el.className = 'ent-banner vip';
@@ -3625,7 +3625,7 @@ function renderDoorStats() {
   const rows = Object.entries(DOOR_TICKETS).map(([code, dt]) => {
     const count = counts[code] || 0;
     const pct = Math.round(count / dt.limit * 100);
-    const evColours = { '30589': '#5BB8E8', '30590': '#F04E30', '30591': '#E91E8C' };
+    const evColours = { '35616': '#5BB8E8', '35636': '#F04E30', '35637': '#E91E8C' };
     const col = evColours[dt.event] || '#22224C';
     return `<div style="background:var(--card);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:12px;">
       <div style="width:12px;height:12px;border-radius:50%;background:${col};flex-shrink:0;"></div>
