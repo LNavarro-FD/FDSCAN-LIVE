@@ -539,7 +539,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v7.0 LIVE</div>
+    <div class="brand-sub">Door Scanner · v7.0</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -555,7 +555,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v7.0 LIVE</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v7.0</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -878,7 +878,7 @@ input::placeholder { color: #999; }
 // ═══════════════════════════════════════════
 //  AUTO-UPDATE CHECK
 // ═══════════════════════════════════════════
-const APP_VERSION = '7.0';
+const APP_VERSION = '7.1';
 (function checkForUpdate() {
   fetch(window.location.href.split('?')[0] + '?_v=' + Date.now(), { cache: 'no-store' })
     .then(r => r.text())
@@ -936,7 +936,7 @@ const mecAttendeeCache = {};
 window.mecAttendeeCache = mecAttendeeCache;
 // Pending checkins to apply when bulk2 loads: key = 'invoiceID:place', value = {name, ticketName, isVip}
 const pendingCheckins = {};
-const SYNC_INTERVAL = 60000; // 60 seconds — only syncs when app is visible
+const SYNC_INTERVAL = 15000; // 15 seconds — only syncs when app is visible
 const META_KEY = '_fd_checked_in';
 const TICKET_META_KEY = '_fd_checked_in_tickets';
 
@@ -1373,7 +1373,7 @@ async function loadGuestList() {
               tickets: Array.from({length: g.qty || 1}, (_, i) => ({
                 key: `${wcKey}-${i+1}`, attendeeKey: String(i+1),
                 name: g.name, ticketName: g.ticketName,
-                isVip: false, checkedIn: (guestMap[`wc-${g.orderNumber}`]?.checkedInTickets?.length > i) || false
+                isVip: false, checkedIn: false
               })),
               source: 'wc', isComp: false, isTM: false
             };
