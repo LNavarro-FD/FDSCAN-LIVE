@@ -74,22 +74,8 @@
 
   <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap">
     <div class="card" style="flex:1;min-width:280px;margin-bottom:0">
-      <h2>Step 1 — Generate PDF Tickets</h2>
-      <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Load RF sheet data and generate branded PDF tickets for all new attendees.</p>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn btn-primary" id="load-btn-top2" onclick="loadData()">
-          <span id="load-spinner-top2" style="display:none" class="spinner"></span>
-          Load Sheet Data
-        </button>
-        <button class="btn btn-navy" id="gen-btn-top2" onclick="generatePDFs()" disabled>
-          <span id="gen-spinner-top2" style="display:none" class="spinner"></span>
-          ⬇ Generate PDFs
-        </button>
-      </div>
-    </div>
-    <div class="card" style="flex:1;min-width:280px;margin-bottom:0">
       <h2>Step 2 — Send Emails</h2>
-      <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Open the email tool to send each attendee their entry ticket PDF. Tracks who has been sent.</p>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px">After generating PDFs below, open the email tool to send each attendee their ticket. Tracks who has been sent.</p>
       <a href="https://lnavarro-fd.github.io/FDSCAN-LIVE/rf_email_tool.html" target="_blank">
         <button class="btn btn-primary">📧 Open Email Tool</button>
       </a>
