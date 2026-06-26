@@ -79,6 +79,11 @@
       <span id="load-spinner" style="display:none" class="spinner"></span>
       Load Sheet Data
     </button>
+    &nbsp;&nbsp;
+    <button class="btn btn-navy" id="gen-btn-top" onclick="generatePDFs()" disabled>
+      <span id="gen-spinner-top" style="display:none" class="spinner"></span>
+      ⬇ Generate PDF Tickets &amp; Mark as Sent
+    </button>
   </div>
 
   <div id="stats-section" style="display:none">
@@ -239,6 +244,8 @@ function renderResults() {
     </table>`;
 
   document.getElementById('gen-btn').disabled = newTickets.length === 0;
+  const topBtn = document.getElementById('gen-btn-top');
+  if (topBtn) topBtn.disabled = newTickets.length === 0;
 }
 
 async function loadImageAsBase64(url) {
