@@ -3096,15 +3096,11 @@ async function lookupTicket(code) {
     }
 
     // 2. Try local guest map (WC orders already loaded)
-    // Skip for MEC QR codes — go straight to MEC lookup
-    const isMecQr = /invoiceID=/i.test(code) || /invoice/i.test(code);
-    if (!isMecQr) {
-      const guest = resolveGuest(code);
-      if (guest) { handleGuest(guest, code); isScanning = false; return; }
-    }
+    const guest = resolveGuest(code);
+    if (guest) { handleGuest(guest, code); isScanning = false; return; }
 
-    // 3. Try WC external ticket lookup (skip for MEC QR codes)
-    if (!cfg.demo && !isMecQr) {
+    // 3. Try WC external ticket lookup (Ticketmaster barcodes stored as meta)
+    if (!cfg.demo) {
       const extGuest = await wcExternalTicketLookup(code);
       if (extGuest) {
         guestMap[extGuest.orderNumber] = extGuest;
