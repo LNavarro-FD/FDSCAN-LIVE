@@ -44,7 +44,7 @@ td{padding:8px 12px;border-bottom:1px solid #eee;vertical-align:middle}
     <h2 style="margin-bottom:12px;font-size:14px;text-transform:uppercase;letter-spacing:.05em">Step 1 &mdash; Generate PDF Tickets</h2>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <button class="btn btn-pink" id="loadBtn">Load Sheet Data</button>
-      <button class="btn btn-navy" id="genBtn" disabled>&#8595; Generate PDFs &amp; Mark as Sent</button>
+      <button class="btn btn-navy" id="genBtn" disabled>&#8595; Generate PDF Tickets</button>
       <a href="rf_email_tool.html" target="_blank"><button class="btn" style="background:#f5f5f7;border:1px solid #ccc">&#128140; Step 2: Email Tool</button></a>
     </div>
     <div id="status" class="status info" style="display:none"></div>
@@ -276,7 +276,7 @@ async function generatePDFs() {
     await new Promise(function(r) { setTimeout(r, 1000); });
   }
 
-  document.getElementById('progText').textContent = 'Done! ' + newOnes.length + ' PDFs in ' + batches + ' zip files downloaded.';
+  document.getElementById('progText').textContent = 'Done! ' + newOnes.length + ' PDFs downloaded. Now go to Step 2 to send emails.';
   document.getElementById('sNew').textContent = '0';
   document.getElementById('sSent').textContent = allTickets.length;
   document.getElementById('genBtn').disabled = true;
