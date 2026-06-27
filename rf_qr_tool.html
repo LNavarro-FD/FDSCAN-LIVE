@@ -155,7 +155,13 @@ async function loadData() {
       };
     }).filter(function(t) { return t.itemId && t.name && t.email; });
 
-    var newOnes = allTickets.filter(function(t) { return !sentIds[t.itemId]; });
+    // Sort by surname then firstname
+  allTickets.sort(function(a, b) {
+    var sA = a.lastName.toLowerCase(), sB = b.lastName.toLowerCase();
+    if (sA < sB) return -1; if (sA > sB) return 1;
+    return a.firstName.toLowerCase().localeCompare(b.firstName.toLowerCase());
+  });
+  var newOnes = allTickets.filter(function(t) { return !sentIds[t.itemId]; });
     setStatus('Loaded ' + allTickets.length + ' tickets — ' + newOnes.length + ' new, ' + Object.keys(sentIds).length + ' already sent.', 'ok');
 
     document.getElementById('sTotal').textContent = allTickets.length;
@@ -192,6 +198,12 @@ async function loadImg(url) {
 }
 
 async function generatePDFs() {
+  // Sort by surname then firstname
+  allTickets.sort(function(a, b) {
+    var sA = a.lastName.toLowerCase(), sB = b.lastName.toLowerCase();
+    if (sA < sB) return -1; if (sA > sB) return 1;
+    return a.firstName.toLowerCase().localeCompare(b.firstName.toLowerCase());
+  });
   var newOnes = allTickets.filter(function(t) { return !sentIds[t.itemId]; });
   if (!newOnes.length) return;
 
