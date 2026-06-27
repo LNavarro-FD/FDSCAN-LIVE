@@ -260,10 +260,7 @@ async function generatePDFs() {
 
   document.getElementById('progText').textContent = 'Saving to Firebase and downloading...';
 
-  for (var j = 0; j < newOnes.length; j++) {
-    sentIds[newOnes[j].itemId] = true;
-    await saveFBSent(newOnes[j].itemId, newOnes[j].name, evtName(newOnes[j].itemName));
-  }
+    // Marking as sent moved to email tool}
 
   // Download in batches to avoid Safari memory issues
   var batchSize = 15;
