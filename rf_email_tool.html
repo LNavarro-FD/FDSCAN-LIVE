@@ -183,6 +183,12 @@ async function loadData() {
 
     document.getElementById('load-section').querySelector('button').style.display = 'none';
     document.getElementById('main-section').style.display = 'block';
+    // Sort by surname then firstname
+    allAttendees.sort(function(a, b) {
+      var sA = a.lastName.toLowerCase(), sB = b.lastName.toLowerCase();
+      if (sA < sB) return -1; if (sA > sB) return 1;
+      return a.firstName.toLowerCase().localeCompare(b.firstName.toLowerCase());
+    });
     renderList();
 
   } catch(e) {
