@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v9.9.9</title>
+<title>FD Door Scanner v9.9.10</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -614,7 +614,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v9.9.9 LIVE</div>
+    <div class="brand-sub">Door Scanner · v9.9.10 LIVE</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -630,7 +630,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v9.9.9 LIVE</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v9.9.10 LIVE</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -953,7 +953,7 @@ input::placeholder { color: #999; }
 // ═══════════════════════════════════════════
 //  AUTO-UPDATE CHECK
 // ═══════════════════════════════════════════
-const APP_VERSION = '9.9.9';
+const APP_VERSION = '9.9.10';
 (function checkForUpdate() {
   fetch(window.location.href.split('?')[0] + '?_v=' + Date.now(), { cache: 'no-store' })
     .then(r => r.text())
@@ -1971,14 +1971,10 @@ async function fetchWooOrders() {
     const t = (ev.title || '').toLowerCase();
     return t.includes('henley') || t.includes('regatta') || t.includes('ibiza') || t.includes('studio 54') || t.includes('brunch') || t.includes('ladies');
   });
-  // WC product search skipped — using KNOWN_PRODUCT_IDS only (avoids Soul Brunch/FD Festival false matches)
-  if (false) {
-    const productSearches = [];
-    // Merge dynamic product IDs with any known hardcoded ones
-    const KNOWN_PRODUCT_IDS = [46883,45414,40451,40450,40449,40448,36309,36308,36307,36306,36305,36304,36303,36302,36301,36299,36298,36297,36296,36295,36294,36293,36292,36291,36290,36289,36288,36287,36284,36283,36282,36281,36280,36279,36278,36277,36276,36275,36273]; // HRR 2026 live product IDs
-    productIds = [...new Set([...productSearches.flat().map(p => p.id), ...KNOWN_PRODUCT_IDS])];
-    console.log(`WC product IDs for current events: ${productIds.join(',')}`);
-  }
+  // Use KNOWN_PRODUCT_IDS directly — no dynamic search (avoids Soul Brunch/FD Festival false matches)
+  const KNOWN_PRODUCT_IDS = [46883,45414,40451,40450,40449,40448,36309,36308,36307,36306,36305,36304,36303,36302,36301,36299,36298,36297,36296,36295,36294,36293,36292,36291,36290,36289,36288,36287,36284,36283,36282,36281,36280,36279,36278,36277,36276,36275,36273];
+  productIds = [...KNOWN_PRODUCT_IDS];
+  console.log(`WC product IDs for current events: ${productIds.join(',')}`);
 
   // Step 2: Fetch orders for each product ID separately then merge
   if (productIds.length === 0) {
