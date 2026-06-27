@@ -1145,8 +1145,14 @@ async function fetchUpcomingEvents() {
               const returnedIds = new Set(events.map(e => String(e.id)));
               const merged = [...events];
               HRR_FALLBACK.forEach(fb => { if (!returnedIds.has(String(fb.id))) merged.push(fb); });
-              upcomingEvents = merged;
-              upcomingEventNames = merged.map(e => (e.title || e.name || e.post_title || '').toLowerCase());
+              // Filter to HRR 2026 events only
+              const HRR_EVENT_IDS = new Set(['35616','35636','35637','35638']);
+              upcomingEvents = merged.filter(e => {
+                if (HRR_EVENT_IDS.has(String(e.id))) return true;
+                const t = (e.title || e.name || e.post_title || '').toLowerCase();
+                return (t.includes('henley') || t.includes('regatta')) && !t.includes('soul');
+              });
+              upcomingEventNames = upcomingEvents.map(e => (e.title || e.name || e.post_title || '').toLowerCase());
               console.log('✓ Upcoming events loaded:', upcomingEventNames.length, upcomingEventNames);
               return;
             }
