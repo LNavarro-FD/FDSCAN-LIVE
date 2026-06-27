@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v9.9.3</title>
+<title>FD Door Scanner v9.9.4</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -614,7 +614,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v9.9.3 LIVE</div>
+    <div class="brand-sub">Door Scanner · v9.9.4 LIVE</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -630,7 +630,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v9.9.3 LIVE</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v9.9.4 LIVE</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -953,7 +953,7 @@ input::placeholder { color: #999; }
 // ═══════════════════════════════════════════
 //  AUTO-UPDATE CHECK
 // ═══════════════════════════════════════════
-const APP_VERSION = '9.9.3';
+const APP_VERSION = '9.9.4';
 (function checkForUpdate() {
   fetch(window.location.href.split('?')[0] + '?_v=' + Date.now(), { cache: 'no-store' })
     .then(r => r.text())
@@ -3785,44 +3785,49 @@ function renderEventCards() {
   const el = document.getElementById('event-cards');
   if (!el) return;
 
-  // Group bookings by category and event day
+  // Group bookings by category and event
   const eventMap = {};
   const eventIdNames = {'35616':'Ladies Day','35636':'Ibiza White Party','35637':'Studio 54','35638':'Brunch on the Banks'};
-  const dayNames = {'Thu':'Ladies Day','Fri':'Ibiza White Party','Sat':'Studio 54'};
 
   Object.values(bookingMap).forEach(b => {
+    const evName = eventIdNames[String(b._eventId)] || null;
     let key;
-    if (b.source === 'mec') {
-      key = eventIdNames[String(b._eventId)] || b.eventTitle || 'MEC Ticket';
-    } else if (b.source === 'sheet') {
-      // Get event day label
-      const evDay = b.eventDay ? (dayNames[b.eventDay] || b.eventDay) : null;
-      const evIds = b.eventIds || [];
-      let evLabel = evDay;
-      if (!evLabel && evIds.length > 0) evLabel = eventIdNames[String(evIds[0])] || null;
-      if (!evLabel) evLabel = 'All Events';
 
-      if (b.isRemenham) {
-        key = '🏡 RF — ' + evLabel;
-      } else if (b.guestType && (b.guestType.toLowerCase().includes('dj') || b.guestType.toLowerCase().includes('artist'))) {
-        key = '🎧 DJs — ' + evLabel;
-      } else if (b.guestType && b.guestType.toLowerCase().includes('entertain')) {
-        key = '🎭 Entertainers — ' + evLabel;
-      } else if (b.guestType && (b.guestType.toLowerCase().includes('staff') || b.guestType.toLowerCase().includes('crew') || b.guestType.toLowerCase().includes('resource'))) {
-        key = '👷 Staff — ' + evLabel;
-      } else {
-        key = '🎁 Guests — ' + evLabel;
-      }
+    if (b.source === 'mec') {
+      // MEC tickets grouped by event name
+      key = evName || b.eventTitle || 'MEC Ticket';
+    } else if (b.source === 'sheet') {
+      const evLabel = evName || 'All Events';
+      if (b.isRemenham) key = '🏡 RF — ' + evLabel;
+      else if (b.guestType && (b.guestType.toLowerCase().includes('dj') || b.guestType.toLowerCase().includes('artist'))) key = '🎧 DJs — ' + evLabel;
+      else if (b.isEntertainment) key = '🎭 Entertainers — ' + evLabel;
+      else if (b.guestType && (b.guestType.toLowerCase().includes('staff') || b.guestType.toLowerCase().includes('crew') || b.guestType.toLowerCase().includes('resource'))) key = '👷 Staff — ' + evLabel;
+      else key = '🎁 Guests — ' + evLabel;
     } else if (b.source === 'wc') {
-      key = eventIdNames[String(b._eventId)] || b.eventTitle || 'WC Order';
+      key = evName || b.eventTitle || 'WC Order';
     } else {
-      key = b.eventTitle || b.eventDay || 'General';
+      key = evName || b.eventTitle || b.eventDay || 'General';
     }
+
     if (!eventMap[key]) eventMap[key] = { bookings:[], title: key };
     eventMap[key].bookings.push(b);
   });
 
-  if (!Object.keys(eventMap).length) {
+  // Sort: MEC events first, then sheet categories
+  const sortOrder = ['Ladies Day','Ibiza White Party','Studio 54','Brunch on the Banks'];
+  const sortedKeys = Object.keys(eventMap).sort((a, b) => {
+    const ai = sortOrder.findIndex(s => a.startsWith(s));
+    const bi = sortOrder.findIndex(s => b.startsWith(s));
+    if (ai > -1 && bi > -1) return ai - bi;
+    if (ai > -1) return -1;
+    if (bi > -1) return 1;
+    return a.localeCompare(b);
+  });
+  const sortedEventMap = {};
+  sortedKeys.forEach(k => sortedEventMap[k] = eventMap[k]);
+
+  const eventMap2 = sortedEventMap;
+  if (!Object.keys(eventMap2).length) {
     el.innerHTML = '<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px;">No events loaded</div>';
     return;
   }
@@ -3830,7 +3835,7 @@ function renderEventCards() {
   const colors = ['var(--pink)','#0050B3','#00A85A','#C06000','#8e44ad','#16a085'];
   let ci = 0;
 
-  el.innerHTML = Object.values(eventMap).map(ev => {
+  el.innerHTML = Object.values(eventMap2).map(ev => {
     const totalTickets   = ev.bookings.reduce((s,b) => s + b.tickets.length, 0);
     const admittedTickets = ev.bookings.reduce((s,b) => s + getBookingAdmittedCount(b), 0);
     const remaining      = totalTickets - admittedTickets;
