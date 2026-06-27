@@ -253,13 +253,30 @@ async function generatePDFs() {
     await saveFBSent(newOnes[j].itemId, newOnes[j].name, evtName(newOnes[j].itemName));
   }
 
-  var blob = await zip.generateAsync({type:'blob'});
-  var a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'RF_QR_Tickets_' + new Date().toISOString().slice(0,10) + '.zip';
-  a.click();
+  // Download in batches to avoid Safari memory issues
+  var batchSize = 15;
+  var batches = Math.ceil(newOnes.length / batchSize);
+  for (var b = 0; b < batches; b++) {
+    var batchZip = new JSZip();
+    var start = b * batchSize;
+    var end = Math.min(start + batchSize, newOnes.length);
+    for (var k = start; k < end; k++) {
+      var fname = 'RF_Ticket_' + newOnes[k].name.replace(/[^a-z0-9]/gi,'_') + '.pdf';
+      // Get file from main zip
+      var fileData = await zip.file(fname).async('arraybuffer');
+      batchZip.file(fname, fileData);
+    }
+    var bblob = await batchZip.generateAsync({type:'blob'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(bblob);
+    a.download = 'RF_QR_Tickets_Batch' + (b+1) + '_' + new Date().toISOString().slice(0,10) + '.zip';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    await new Promise(function(r) { setTimeout(r, 1000); });
+  }
 
-  document.getElementById('progText').textContent = 'Done! ' + newOnes.length + ' PDFs downloaded.';
+  document.getElementById('progText').textContent = 'Done! ' + newOnes.length + ' PDFs in ' + batches + ' zip files downloaded.';
   document.getElementById('sNew').textContent = '0';
   document.getElementById('sSent').textContent = allTickets.length;
   document.getElementById('genBtn').disabled = true;
