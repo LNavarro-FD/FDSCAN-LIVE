@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v7.0</title>
+<title>FD Door Scanner v9.8</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -522,6 +522,81 @@ input::placeholder { color: #999; }
 .sync-dot.offline { background: #FF9500; animation: pulse-warn 1.5s ease-in-out infinite; }
 @keyframes pulse-warn { 0%,100%{opacity:1} 50%{opacity:.4} }
 </style>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, set, get, child } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+  window._fbConfig = {
+    apiKey: "AIzaSyAM15tgoOUAgJcFxJ_pcXM-lLQb9PL1zu4",
+    databaseURL: "https://funky-dory-fdscan-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "funky-dory-fdscan",
+    appId: "1:459595303067:web:00e1f195dd0a1d659a9e3e"
+  };
+  const app = initializeApp(window._fbConfig);
+  const db = getDatabase(app);
+  window._fb = { db, ref, set, get, child };
+  document.dispatchEvent(new Event('firebaseReady'));
+  console.log('Firebase ready');
+
+  // Load RF checkins on start
+  document.addEventListener('DOMContentLoaded', async () => {
+    try {
+      const snap = await get(child(ref(db), 'rfCheckins'));
+      if (snap.exists()) {
+        window._rfCheckins = snap.val();
+        console.log('RF checkins loaded from Firebase:', Object.keys(window._rfCheckins).length);
+      } else {
+        window._rfCheckins = {};
+      }
+    } catch(e) {
+      window._rfCheckins = {};
+      console.warn('Firebase RF checkins load failed:', e.message);
+    }
+  });
+
+  // Global function to write RF checkin to Firebase
+  window.fbWriteRFCheckin = async function(itemId, name, eventTitle) {
+    try {
+      await set(ref(db, `rfCheckins/${itemId}`), {
+        name, eventTitle,
+        checkedIn: true,
+        checkedInTime: new Date().toISOString()
+      });
+      if (!window._rfCheckins) window._rfCheckins = {};
+      window._rfCheckins[itemId] = { name, eventTitle, checkedIn: true };
+    } catch(e) {
+      console.warn('Firebase RF write failed:', e.message);
+    }
+  };
+
+  // Global function to write sheet guest checkin to Firebase
+  window.fbWriteSheetCheckin = async function(key, name) {
+    try {
+      await set(ref(db, `sheetCheckins/${key}`), {
+        name,
+        checkedIn: true,
+        checkedInTime: new Date().toISOString()
+      });
+    } catch(e) {
+      console.warn('Firebase sheet write failed:', e.message);
+    }
+  };
+
+  // Load sheet checkins on start
+  document.addEventListener('DOMContentLoaded', async () => {
+    try {
+      const snap = await get(child(ref(db), 'sheetCheckins'));
+      if (snap.exists()) {
+        window._sheetCheckins = snap.val();
+        console.log('Sheet checkins loaded from Firebase:', Object.keys(window._sheetCheckins).length);
+      } else {
+        window._sheetCheckins = {};
+      }
+    } catch(e) {
+      window._sheetCheckins = {};
+      console.warn('Firebase sheet checkins load failed:', e.message);
+    }
+  });
+</script>
 </head>
 <body>
 <div id="ios-install-banner" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:9999;background:#1a2744;color:#fff;padding:12px 16px;flex-direction:row;align-items:center;gap:12px;box-shadow:0 -2px 12px rgba(0,0,0,0.3);">
@@ -539,7 +614,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v7.0</div>
+    <div class="brand-sub">Door Scanner · v9.8 LIVE</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -555,7 +630,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v7.0</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v9.8 LIVE</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -878,7 +953,7 @@ input::placeholder { color: #999; }
 // ═══════════════════════════════════════════
 //  AUTO-UPDATE CHECK
 // ═══════════════════════════════════════════
-const APP_VERSION = '7.0';
+const APP_VERSION = '9.8';
 (function checkForUpdate() {
   fetch(window.location.href.split('?')[0] + '?_v=' + Date.now(), { cache: 'no-store' })
     .then(r => r.text())
@@ -913,13 +988,14 @@ let glSubFilter = 'all';
 
 // Door ticket counters (persisted in localStorage)
 const DOOR_TICKETS = {
-  'FD-DOOR-LD-DAY':  { label: 'Ladies Day · Day',          event: '30589', limit: 500 },
-  'FD-DOOR-LD-EVE':  { label: 'Ladies Day · Evening',      event: '30589', limit: 500 },
-  'FD-DOOR-IB-DAY':  { label: 'Ibiza · Day',               event: '30590', limit: 500 },
-  'FD-DOOR-IB-EVE':  { label: 'Ibiza · Evening',           event: '30590', limit: 500 },
-  'FD-DOOR-BB':      { label: 'Brunch on the Banks',        event: '30591', limit: 500 },
-  'FD-DOOR-S54-DAY': { label: 'Studio 54 · Day',           event: '30591', limit: 500 },
-  'FD-DOOR-S54-EVE': { label: 'Studio 54 · Evening',       event: '30591', limit: 500 },
+  'FD-DOOR-LD-DAY':  { label: 'Ladies Day · Day',      event: '35616', limit: 500 },
+  'FD-DOOR-LD-EVE':  { label: 'Ladies Day · Evening',  event: '35616', limit: 500 },
+  'FD-DOOR-IB-DAY':  { label: 'Ibiza · Day',           event: '35636', limit: 500 },
+  'FD-DOOR-IB-EVE':  { label: 'Ibiza · Evening',       event: '35636', limit: 500 },
+  'FD-DOOR-S54-DAY': { label: 'Studio 54 · Day',       event: '35637', limit: 500 },
+  'FD-DOOR-S54-EVE': { label: 'Studio 54 · Evening',   event: '35637', limit: 500 },
+  'FD-DOOR-BR-DAY':  { label: 'Brunch · Day',          event: '35638', limit: 500 },
+  'FD-DOOR-BR-EVE':  { label: 'Brunch · Evening',      event: '35638', limit: 500 },
 };
 function getDoorCounts() {
   try { return JSON.parse(localStorage.getItem('fd_door_counts') || '{}'); } catch(e) { return {}; }
@@ -1095,9 +1171,10 @@ let upcomingEvents = [];
 async function fetchUpcomingEvents() {
   // Always set HRR 2026 fallback immediately so pills show even if MEC is slow/broken
   upcomingEvents = [
-    { id: 30589, title: 'Henley Ladies Day', mec_data: { start_date: '2026-07-02', end_date: '2026-07-02', start_time: '14:00:00' } },
-    { id: 30590, title: 'Ibiza White Party',  mec_data: { start_date: '2026-07-03', end_date: '2026-07-03', start_time: '14:00:00' } },
-    { id: 30591, title: 'Studio 54',          mec_data: { start_date: '2026-07-04', end_date: '2026-07-04', start_time: '14:00:00' } },
+    { id: 35616, title: 'Henley Ladies Day', mec_data: { start_date: '2026-07-02', end_date: '2026-07-02', start_time: '14:00:00' } },
+    { id: 35636, title: 'Ibiza White Party',  mec_data: { start_date: '2026-07-03', end_date: '2026-07-03', start_time: '14:00:00' } },
+    { id: 35637, title: 'Studio 54',          mec_data: { start_date: '2026-07-04', end_date: '2026-07-04', start_time: '14:00:00' } },
+    { id: 35638, title: 'Brunch on the Banks', mec_data: { start_date: '2026-07-04', end_date: '2026-07-04', start_time: '11:00:00' } },
   ];
   upcomingEventNames = upcomingEvents.map(e => e.title.toLowerCase());
 
@@ -1133,14 +1210,14 @@ async function fetchUpcomingEvents() {
           console.log('Events found in response:', events.length);
           if (events.length > 0) {
             // Only use MEC events if they include our HRR 2026 events
-            const HRR_IDS = new Set(['30589','30590','30591']);
+            const HRR_IDS = new Set(['35616','35636','35637','35638']);
             const hasHRR = events.some(e => HRR_IDS.has(String(e.id)));
             if (hasHRR) {
               // Always ensure all 3 HRR events are present — merge MEC results with fallback
               const HRR_FALLBACK = [
-                { id: 30589, title: 'Henley Ladies Day', mec_data: { start_date: '2026-07-02', end_date: '2026-07-02', start_time: '14:00:00' } },
-                { id: 30590, title: 'Ibiza White Party',  mec_data: { start_date: '2026-07-03', end_date: '2026-07-03', start_time: '14:00:00' } },
-                { id: 30591, title: 'Studio 54',          mec_data: { start_date: '2026-07-04', end_date: '2026-07-04', start_time: '14:00:00' } },
+                { id: 35616, title: 'Henley Ladies Day', mec_data: { start_date: '2026-07-02', end_date: '2026-07-02', start_time: '14:00:00' } },
+                { id: 35636, title: 'Ibiza White Party',  mec_data: { start_date: '2026-07-03', end_date: '2026-07-03', start_time: '14:00:00' } },
+                { id: 35637, title: 'Studio 54',          mec_data: { start_date: '2026-07-04', end_date: '2026-07-04', start_time: '14:00:00' } },
               ];
               const returnedIds = new Set(events.map(e => String(e.id)));
               const merged = [...events];
@@ -1166,18 +1243,18 @@ async function fetchUpcomingEvents() {
     console.warn('✗ No upcoming events found from MEC API — using HRR 2026 fallback');
     // Fallback: hardcode HRR 2026 events so pills always show
     upcomingEvents = [
-      { id: 30589, title: 'Henley Ladies Day', mec_data: { start_date: '2026-07-02', end_date: '2026-07-02', start_time: '14:00:00' } },
-      { id: 30590, title: 'Ibiza White Party',  mec_data: { start_date: '2026-07-03', end_date: '2026-07-03', start_time: '14:00:00' } },
-      { id: 30591, title: 'Studio 54',           mec_data: { start_date: '2026-07-04', end_date: '2026-07-04', start_time: '14:00:00' } },
+      { id: 35616, title: 'Henley Ladies Day', mec_data: { start_date: '2026-07-02', end_date: '2026-07-02', start_time: '14:00:00' } },
+      { id: 35636, title: 'Ibiza White Party',  mec_data: { start_date: '2026-07-03', end_date: '2026-07-03', start_time: '14:00:00' } },
+      { id: 35637, title: 'Studio 54',           mec_data: { start_date: '2026-07-04', end_date: '2026-07-04', start_time: '14:00:00' } },
     ];
     upcomingEventNames = upcomingEvents.map(e => e.title.toLowerCase());
     console.log('✓ Using HRR 2026 fallback events:', upcomingEventNames);
   } catch(e) {
     console.warn('Could not fetch upcoming events:', e.message);
     upcomingEvents = [
-      { id: 30589, title: 'Henley Ladies Day', mec_data: { start_date: '2026-07-02', end_date: '2026-07-02', start_time: '14:00:00' } },
-      { id: 30590, title: 'Ibiza White Party',  mec_data: { start_date: '2026-07-03', end_date: '2026-07-03', start_time: '14:00:00' } },
-      { id: 30591, title: 'Studio 54',           mec_data: { start_date: '2026-07-04', end_date: '2026-07-04', start_time: '14:00:00' } },
+      { id: 35616, title: 'Henley Ladies Day', mec_data: { start_date: '2026-07-02', end_date: '2026-07-02', start_time: '14:00:00' } },
+      { id: 35636, title: 'Ibiza White Party',  mec_data: { start_date: '2026-07-03', end_date: '2026-07-03', start_time: '14:00:00' } },
+      { id: 35637, title: 'Studio 54',           mec_data: { start_date: '2026-07-04', end_date: '2026-07-04', start_time: '14:00:00' } },
     ];
     upcomingEventNames = upcomingEvents.map(e => e.title.toLowerCase());
   }
@@ -1369,7 +1446,10 @@ async function loadGuestList() {
         console.log('WC completed late — re-rendering with', lateWcGuests.length, 'orders');
         lateWcGuests.forEach(g => {
           const wcKey = `wc-${g.orderNumber}`;
-          if (!bookingMap[wcKey] && !invoiceMap[String(g.orderNumber)]) {
+          // Skip if already in bulk2/MEC by invoice ID or email
+          const alreadyMec = invoiceMap[String(g.orderNumber)] && invoiceMap[String(g.orderNumber)].source === 'mec';
+          const alreadyByEmail = g.email && emailMap[g.email] && emailMap[g.email].source === 'mec';
+          if (!bookingMap[wcKey] && !alreadyMec && !alreadyByEmail) {
             g._source = 'wc';
             guestMap[`wc-${g.orderNumber}`] = g;
             if (g.email && !emailMap[g.email]) emailMap[g.email] = g;
@@ -1476,7 +1556,7 @@ async function loadGuestList() {
 
     // Now process bulk2 (may already be resolved or still pending)
     const bd = await bulk2Promise;
-    const keepEventIds = new Set(['30589','30590','30591']);
+    const keepEventIds = new Set(['35616','35636','35637','35638']); // HRR 2026 live event IDs
     console.log('bulk2 total checkins:', (bd.checkins||[]).length);
     const bulkByBooking = {};
     (bd.checkins || []).forEach(c => {
@@ -1498,18 +1578,21 @@ async function loadGuestList() {
           if (guestMap[wcGuestKey]) delete guestMap[wcGuestKey];
         }
         const leadName = data.attendees[0]?.name || '';
+        const eventDay = detectDay('', data.eventId);
+        const firstTicketName = data.attendees[0]?.ticket_name || 'MEC Ticket';
+        const isVipBooking = /vip/i.test(firstTicketName);
         bookingMap[bid] = {
           bookingId: bid, invoiceID: data.inv,
           mecInvoiceID: data.mecInv,
           name: leadName, email: data.attendees[0]?.email || '',
-          eventTitle: '', eventDay: '',
+          eventTitle: firstTicketName, eventDay: eventDay,
           _eventId: data.eventId,
           tickets: [], source: 'mec', isComp: false, isTM: false
         };
         invoiceMap[data.inv] = bookingMap[bid];
         if (data.mecInv && data.mecInv !== data.inv) invoiceMap[data.mecInv] = bookingMap[bid];
         data.attendees.forEach((a, idx) => {
-          const ticketName = a.ticket_name || 'MEC Ticket';
+          const ticketName = a.ticket_name || firstTicketName;
           const isVip = /vip/i.test(ticketName);
           bookingMap[bid].tickets.push({
             key: `${bid}-${idx+1}`, attendeeKey: String(idx+1),
@@ -1521,6 +1604,23 @@ async function loadGuestList() {
         });
         // Set booking-level VIP if any ticket is VIP
         if (bookingMap[bid].tickets.some(t => t.isVip)) bookingMap[bid].isVip = true;
+        // Add to guestMap so guest list renders this booking
+        const qty = data.attendees.length || 1;
+        const checkedInTickets = data.attendees
+          .map((a, idx) => a.checked_in ? `${bid}-${idx+1}` : null)
+          .filter(Boolean);
+        guestMap[bid] = {
+          id: bid, name: leadName, email: data.attendees[0]?.email || '',
+          ticketName: firstTicketName, eventDay: eventDay,
+          qty: qty, checkedIn: checkedInTickets.length >= qty,
+          checkedInTickets: checkedInTickets,
+          isVip: isVipBooking, isComp: false, isTM: false,
+          orderNumber: data.inv, _eventId: data.eventId,
+          source: 'mec'
+        };
+        if (data.attendees[0]?.email && !emailMap[data.attendees[0].email]) {
+          emailMap[data.attendees[0].email] = guestMap[bid];
+        }
         bulk2Changed = true;
       } else {
         data.attendees.forEach((a, idx) => {
@@ -1575,10 +1675,10 @@ function sheetEventToId(eventStr) {
   if (!eventStr) return [];
   const s = eventStr.trim().toLowerCase();
   if (s === 'all') return upcomingEvents.map(e => String(e.id));
-  if (s.includes('ladies')) return ['30589'];
-  if (s.includes('ibiza') || s.includes('white party')) return ['30590'];
-  if (s.includes('studio')) return ['30591'];
-  if (s.includes('brunch')) return ['30592'];
+  if (s.includes('ladies')) return ['35616'];
+  if (s.includes('ibiza') || s.includes('white party')) return ['35636'];
+  if (s.includes('studio')) return ['35637'];
+  if (s.includes('brunch')) return ['35638'];
   return [];
 }
 
@@ -1745,9 +1845,9 @@ async function loadCompGuests() {
 
     // Tab 3: Resources — Section(0)|Status(1)|First Name(2)|Last Name(3)|...|Thu(11,12,13)|Fri(14,15,16)|Sat(17,18,19)
     const DAY_COLS = [
-      { eventId: '30589', indices: [11,12,13], label: 'Thu' },
-      { eventId: '30590', indices: [14,15,16], label: 'Fri' },
-      { eventId: '30591', indices: [17,18,19], label: 'Sat' },
+      { eventId: '35616', indices: [11,12,13], label: 'Thu' },
+      { eventId: '35636', indices: [14,15,16], label: 'Fri' },
+      { eventId: '35637', indices: [17,18,19], label: 'Sat' },
     ];
     try {
       const rows = await fetchSheetTab(SHEET_TABS.resources);
@@ -1790,8 +1890,32 @@ async function loadCompGuests() {
         n++;
       });
       console.log(`✓ Sheet Remenham Farm: ${n}`); total += n;
+    // Apply Firebase RF checkin state
+    if (window._rfCheckins) {
+      Object.entries(window._rfCheckins).forEach(([itemId, fbData]) => {
+        if (fbData.checkedIn) {
+          const b = Object.values(bookingMap).find(bk => bk.source === 'sheet' && bk.isRemenham && String(bk.rfItemId) === String(itemId));
+          if (b && b.tickets[0]) {
+            b.tickets[0].checkedIn = true;
+            if (guestMap[b.bookingId]) { guestMap[b.bookingId].checkedIn = true; guestMap[b.bookingId].checkedInTickets = [b.bookingId + '-1']; }
+          }
+        }
+      });
+      console.log('RF Firebase checkins applied');
+    }
     } catch(e) { console.warn('Sheet Remenham Farm failed:', e.message); }
 
+    // Restore sheet guest checkins from Firebase
+    if (window._sheetCheckins) {
+      Object.entries(window._sheetCheckins).forEach(([key, fbData]) => {
+        if (fbData.checkedIn && bookingMap[key]) {
+          const b = bookingMap[key];
+          if (b.tickets && b.tickets[0]) b.tickets[0].checkedIn = true;
+          if (guestMap[key]) { guestMap[key].checkedIn = true; if (!guestMap[key].checkedInTickets) guestMap[key].checkedInTickets = []; guestMap[key].checkedInTickets.push(key + '-1'); }
+        }
+      });
+      console.log('Sheet Firebase checkins applied');
+    }
     console.log(`✓ Google Sheet total: ${total}`);
   } catch(e) {
     console.warn('Google Sheet load failed:', e.message);
@@ -1842,8 +1966,13 @@ async function fetchWooOrders() {
   // Step 1: Dynamically look up WC product IDs for current MEC events
   const SKIP = ['funky','dory','during','henley','royal','regatta','meets','and','the','party','white'];
   let productIds = [];
-  if (upcomingEvents.length > 0) {
-    const productSearches = await Promise.all(upcomingEvents.map(async ev => {
+  // Only search WC products for HRR events — filter out recurring/non-HRR events
+  const hrrEvents = upcomingEvents.filter(ev => {
+    const t = (ev.title || '').toLowerCase();
+    return t.includes('henley') || t.includes('regatta') || t.includes('ibiza') || t.includes('studio 54') || t.includes('brunch') || t.includes('ladies');
+  });
+  if (hrrEvents.length > 0) {
+    const productSearches = await Promise.all(hrrEvents.map(async ev => {
       const word = (ev.title||'').split(/\W+/).find(w => w.length > 3 && !SKIP.includes(w.toLowerCase()));
       if (!word) return [];
       try {
@@ -1853,7 +1982,7 @@ async function fetchWooOrders() {
       } catch(e) { return []; }
     }));
     // Merge dynamic product IDs with any known hardcoded ones
-    const KNOWN_PRODUCT_IDS = [30876]; // add any known IDs not found by keyword search
+    const KNOWN_PRODUCT_IDS = [46883,45414,40451,40450,40449,40448,36309,36308,36307,36306,36305,36304,36303,36302,36301,36299,36298,36297,36296,36295,36294,36293,36292,36291,36290,36289,36288,36287,36284,36283,36282,36281,36280,36279,36278,36277,36276,36275,36273]; // HRR 2026 live product IDs
     productIds = [...new Set([...productSearches.flat().map(p => p.id), ...KNOWN_PRODUCT_IDS])];
     console.log(`WC product IDs for current events: ${productIds.join(',')}`);
   }
@@ -1864,6 +1993,15 @@ async function fetchWooOrders() {
     return [];
   }
 
+  // Pause WC fetch if scan is in progress
+  if (window._scanInProgress) {
+    console.log('WC fetch paused — scan in progress');
+    await new Promise(resolve => {
+      const check = setInterval(() => {
+        if (!window._scanInProgress) { clearInterval(check); resolve(); }
+      }, 200);
+    });
+  }
   const orderSets = await Promise.all(productIds.map(async pid => {
     let page = 1, orders = [];
     while (true) {
@@ -1953,16 +2091,16 @@ let showAll = false;
 function showWristbandToast(booking, ticket) {
   const toastEvId = String(booking._eventId || '');
   const toastCols = {
-    '30589': { bg: '#5BB8E8', name: 'Sky Blue · Ladies Day' },
-    '30590': { bg: '#F04E30', name: 'Coral · Ibiza' },
-    '30591': { bg: '#E91E8C', name: 'Hot Pink · Studio 54' },
+    '35616': { bg: '#5BB8E8', name: 'Sky Blue · Ladies Day' },
+    '35636': { bg: '#F04E30', name: 'Coral · Ibiza' },
+    '35637': { bg: '#E91E8C', name: 'Hot Pink · Studio 54' },
   };
   let evCol = toastCols[toastEvId];
   if (!evCol) {
     const t = ((ticket.ticketName||'') + ' ' + (booking.eventTitle||'')).toLowerCase();
-    if (t.includes('ladies')) evCol = toastCols['30589'];
-    else if (t.includes('ibiza') || t.includes('white party')) evCol = toastCols['30590'];
-    else if (t.includes('studio')) evCol = toastCols['30591'];
+    if (t.includes('ladies')) evCol = toastCols['35616'];
+    else if (t.includes('ibiza') || t.includes('white party')) evCol = toastCols['35636'];
+    else if (t.includes('studio')) evCol = toastCols['35637'];
   }
   const entryType = ticket.entryType || booking.entryType || (ticket.isVip ? 'VIP' : (/vip/i.test(ticket.ticketName || booking.eventTitle || '') ? 'VIP' : 'GE'));
   const isEvening = (function(s){return /evening/i.test(s)||/access only/i.test(s);})(ticket.ticketName || booking.eventTitle || '');
@@ -1985,7 +2123,7 @@ function showWristbandToast(booking, ticket) {
   else if (imgEl) { imgEl.style.display = 'none'; }
   toast.classList.add('show');
   clearTimeout(window._toastTimer);
-  window._toastTimer = setTimeout(() => toast.classList.remove('show'), 5000);
+  window._toastTimer = setTimeout(() => toast.classList.remove('show'), 8000);
   toast.onclick = () => { clearTimeout(window._toastTimer); toast.classList.remove('show'); };
 }
 
@@ -2727,6 +2865,8 @@ async function lookupTicket(code) {
   pendingTMCode = null;
 
   setResult('','⏳','Checking…','');
+  window._scanInProgress = true;
+  console.time('SCAN_TOTAL');
 
   try {
     // 0. Check if it's an RF (Remenham Farm) QR code
@@ -2748,6 +2888,8 @@ async function lookupTicket(code) {
         isScanning = false; return;
       }
       if (ticket) ticket.checkedIn = true;
+      // Persist RF checkin to Firebase
+      if (window.fbWriteRFCheckin) window.fbWriteRFCheckin(rfId, rfBooking.name, rfBooking.eventTitle);
       addLog({ name: rfBooking.name, ticket: `${rfBooking.eventTitle} (RF)`, status:'ok', code });
       stats.admitted++; stats.total++;
       document.getElementById('hdr-count').textContent = stats.admitted;
@@ -2767,12 +2909,15 @@ async function lookupTicket(code) {
       document.getElementById('result-chips').classList.add('hidden');
       document.getElementById('tm-actions').classList.add('hidden');
 
-      const mecGuest = await mecLookupAndCheckin(code);
+      console.timeLog('SCAN_TOTAL', 'before mecLookupAndCheckin');
+    const mecGuest = await mecLookupAndCheckin(code);
+    console.timeLog('SCAN_TOTAL', 'after mecLookupAndCheckin');
       if (mecGuest) {
         const invoiceId    = mecGuest._invoiceID || mecGuest.orderNumber;
         const place        = mecGuest._place;
-        const localBooking = invoiceMap[invoiceId] || bookingMap[invoiceId]
-                          || Object.values(bookingMap).find(b => String(b.invoiceID) === String(invoiceId) || String(b.mecInvoiceID) === String(invoiceId));
+        // Use indexed lookups only — avoid slow Object.values().find() on 400+ bookings
+        const localBooking = invoiceMap[String(invoiceId)] || invoiceMap[String(mecGuest._invoiceID)]
+                          || bookingMap[String(invoiceId)] || bookingMap[String(mecGuest._invoiceID)];
         const localTicket  = localBooking?.tickets.find(t => String(t.attendeeKey) === String(place))
                           || localBooking?.tickets[parseInt(place) - 1];
         const alreadyInLocal = localTicket?.checkedIn === true;
@@ -2788,7 +2933,9 @@ async function lookupTicket(code) {
         }
         if (cfg.siteUrl && invoiceId && place) {
           try {
-            const cr = await fetch(`${cfg.siteUrl}/wp-json/fd2/v1/checkins?invoice_id=${encodeURIComponent(invoiceId)}`);
+            console.timeLog('SCAN_TOTAL', 'before checkins fetch');
+      const cr = await fetch(`${cfg.siteUrl}/wp-json/fd2/v1/checkins?invoice_id=${encodeURIComponent(invoiceId)}`);
+      console.timeLog('SCAN_TOTAL', 'after checkins fetch');
             if (cr.ok) {
               const cd = await cr.json();
               if (cd.found && cd.attendees) {
@@ -2797,7 +2944,11 @@ async function lookupTicket(code) {
                   if (att.name) { mecGuest.name = att.name; checkinName = att.name; }
                   if (att.checked_in && !alreadyInLocal) {
                     alreadyInDb = true;
-                    if (localTicket) localTicket.checkedIn = true;
+                    if (localTicket) {
+          localTicket.checkedIn = true;
+          // Persist sheet guest checkin to Firebase
+          if (window.fbWriteSheetCheckin) window.fbWriteSheetCheckin(booking.bookingId, booking.name);
+        }
                   }
                 }
               }
@@ -2915,6 +3066,17 @@ async function lookupTicket(code) {
                   ticket.name = mecGuest.name;
                 }
               }
+              // Also sync to guestMap WC entry if present (covers MEC bookings paid via WC)
+              const wcInvoiceId = booking.invoiceID || invId;
+              const wcGuestKey = `wc-${wcInvoiceId}`;
+              if (guestMap[wcGuestKey]) {
+                const wcTicketCode = `${wcGuestKey}-${placeNo}`;
+                if (!guestMap[wcGuestKey].checkedInTickets) guestMap[wcGuestKey].checkedInTickets = [];
+                if (!guestMap[wcGuestKey].checkedInTickets.includes(wcTicketCode)) {
+                  guestMap[wcGuestKey].checkedInTickets.push(wcTicketCode);
+                }
+                guestMap[wcGuestKey].checkedIn = guestMap[wcGuestKey].checkedInTickets.length >= (guestMap[wcGuestKey].qty || 1);
+              }
               // Update lead booking name if this was ticket 1 (place 1)
               if ((placeNo === '1' || placeNo === 1) && mecGuest.name && mecGuest.name !== 'Guest') {
                 // Don't overwrite lead name — keep Louise as lead, only update ticket name
@@ -2950,7 +3112,9 @@ async function lookupTicket(code) {
               now
             ].filter(Boolean).join('  ·  ');
             setResult('ok','✓', mecGuest.name, detail, true);
-            console.log('SCAN RESULT: name=', mecGuest.name, 'checkinName=', checkinName);
+            window._scanInProgress = false;
+    console.timeEnd('SCAN_TOTAL');
+    console.log('SCAN RESULT: name=', mecGuest.name, 'checkinName=', checkinName);
             showEnt(mecGuest);
             updateStats();
           }
@@ -3109,7 +3273,14 @@ async function resolveShortUrl(shortUrl) {
   return null;
 }
 
-function detectDay(ticketName) {
+function detectDay(ticketName, eventId) {
+  // Use event ID first (most reliable for bulk2 bookings)
+  const eid = String(eventId || '');
+  if (eid === '35616') return 'Thu'; // Ladies Day
+  if (eid === '35636') return 'Fri'; // Ibiza White Party
+  if (eid === '35637') return 'Sat'; // Studio 54
+  if (eid === '35638') return 'Sat'; // Brunch on the Banks
+  // Fall back to ticket name
   const tn = (ticketName || '').toUpperCase();
   if (/THURSDAY|THU|THU|LADIES.DAY/.test(tn))       return 'Thu';
   if (/FRIDAY|FRI|FRI|IBIZA|WHITE.PARTY/.test(tn))   return 'Fri';
@@ -3118,7 +3289,7 @@ function detectDay(ticketName) {
 }
 
 async function mecLookupAndCheckin(code) {
-  if (!cfg.mecKey || !cfg.siteUrl) return null;
+  if (!cfg.siteUrl) return null;
 
   let parsed = parseMecQrUrl(code);
   if (!parsed) return null;
@@ -3129,133 +3300,59 @@ async function mecLookupAndCheckin(code) {
     if (!parsed) return null;
   }
 
-  try {
-    // GET all invoice attendees with pagination
-    let attendees = [];
-    let page = 1;
-    while (true) {
-      const mecInvHeaders = { 'X-MEC-KEY': cfg.mecKey };
-      if (cfg.wcKey && cfg.wcSecret) {
-        mecInvHeaders['Authorization'] = 'Basic ' + btoa(cfg.wcKey + ':' + cfg.wcSecret);
-      }
-      const r = await fetch(
-        `${cfg.siteUrl}/wp-json/mec-utility/v1/invoices/${parsed.invoiceID}/attendees?per_page=100&page=${page}`,
-        { headers: mecInvHeaders }
-      );
-      if (!r.ok) {
-        console.warn('MEC invoice attendees failed:', r.status);
-        break;
-      }
-      const data = await r.json();
-      if (!data) break;
-      const batch = Array.isArray(data) ? data : (data.attendees || data.data || []);
-      if (!batch.length) break;
-      attendees = attendees.concat(batch);
-      // Check if there are more pages
-      const total = parseInt(r.headers.get('X-WP-Total') || r.headers.get('x-wp-total') || '0');
-      if (!total || attendees.length >= total) break;
-      page++;
-    }
+  // Skip mec-utility API (too slow/blocked on live) — build guest from bulk2 data directly
+  const invoiceID = parsed.invoiceID;
+  const place = parsed.place;
+  if (!invoiceID) return null;
 
-    console.log(`MEC invoice ${parsed.invoiceID}: found ${attendees.length} attendees`);
+  const bookingMapEntry = invoiceMap[String(invoiceID)] || bookingMap[String(invoiceID)];
+  
+  // Get per-attendee name from bulk2 cache or bookingMap
+  const cachedName = mecAttendeeCache[`${invoiceID}:${place}`];
+  const bookingMapTicket = bookingMapEntry?.tickets?.find(t => String(t.attendeeKey) === String(place))
+    || bookingMapEntry?.tickets?.[parseInt(place) - 1];
+  const bookingMapName = bookingMapTicket?.name || bookingMapEntry?.name || '';
+  const name = cachedName || bookingMapName || 'Guest';
 
-    // Find the specific attendee by place number
-    let attendee = null;
-    if (parsed.place && attendees.length > 0) {
-      attendee = attendees.find(a => 
-        String(a.place)        === String(parsed.place) || 
-        String(a.ticket_place) === String(parsed.place) ||
-        String(a.attendee_place) === String(parsed.place) ||
-        String(a.index)        === String(parseInt(parsed.place) - 1) ||
-        String(a.id)           === String(parsed.place)
-      );
-      // If still not found, try by position in array
-      if (!attendee) {
-        const placeNum = parseInt(parsed.place);
-        if (!isNaN(placeNum) && placeNum > 0 && placeNum <= attendees.length) {
-          attendee = attendees[placeNum - 1];
-        }
-      }
-    }
-    // Fallback to first attendee if place not found — but prefer bookingMap name
-    if (!attendee && attendees.length > 0) attendee = attendees[0];
-    if (!attendee) {
-      attendee = { email: parsed.email };
-    }
+  // Get ticket name — use WC guestMap first (has real product name), then event ID mapping
+  const wcEntry = guestMap[`wc-${bookingMapEntry?.invoiceID}`] || guestMap[`wc-${invoiceID}`];
+  const wcTicketName = wcEntry?.ticketName || '';
+  const eventIdTicketMap = {
+    '35616': 'Funky Dory During Henley Regatta Ladies Day',
+    '35636': 'Funky Dory Ibiza White Party During Henley Royal Regatta',
+    '35637': 'Funky Dory meets Studio 54 during Henley Royal Regatta',
+    '35638': 'Funky Dory Brunch on the Banks During Henley Royal Regatta'
+  };
+  let ticketName = wcTicketName || bookingMapTicket?.ticketName || bookingMapEntry?.eventTitle || eventIdTicketMap[String(bookingMapEntry?._eventId)] || 'MEC Ticket';
+  const isVip = /vip/i.test(ticketName) || !!(bookingMapTicket?.isVip) || !!(wcEntry?.isVip);
 
-    const bookingMapEntry = invoiceMap[parsed.invoiceID] || bookingMap[parsed.invoiceID];
-    // Get the specific ticket for this place to find the correct attendee name
-    const bookingMapTicket = bookingMapEntry?.tickets?.find(t => String(t.attendeeKey) === String(parsed.place))
-                          || bookingMapEntry?.tickets?.[parseInt(parsed.place) - 1];
-    const bookingMapName  = bookingMapTicket?.name || (bookingMapEntry ? bookingMapEntry.name : '');
+  const ticketKey = `${invoiceID}-${place || '0'}`;
+  const checkedIn = !!(bookingMapTicket?.checkedIn);
 
-    // Check mecAttendeeCache — populated from bulk2, keyed by mec_invoice_id:place
-    // This gives us the correct per-attendee name even before/instead of bookingMap
-    const cachedName = mecAttendeeCache[`${parsed.invoiceID}:${parsed.place}`];
+  console.log(`mecLookupAndCheckin (bulk2 mode): invoice=${invoiceID} place=${place} name=${name}`);
 
-    // Use bookingMap name as primary source if available (it has per-attendee names from mec_attendees)
-    // Fall back to MEC API attendee fields only if bookingMap has no name
-    const apiName = [attendee.first_name || '', attendee.last_name || ''].filter(Boolean).join(' ').trim()
-                  || attendee.name || '';
-    // Priority: 1) cachedName from bulk2 (most reliable), 2) ticket-level bookingMap name, 3) API name, 4) booking lead name
-    const name = cachedName
-                  || (bookingMapName && bookingMapName !== bookingMapEntry?.name ? bookingMapName : null)
-                  || apiName
-                  || bookingMapName
-                  || 'Guest';
-    
-    // Get ticket name — try attendee field first, then always fall back to bookingMap
-    let ticketName = attendee.ticket_name || attendee.ticket_label || attendee.type || '';
-
-    if (!ticketName) {
-      // Look up from bookingMap by place/attendeeKey
-      const bk = bookingMapEntry || bookingMap[parsed.invoiceID];
-      if (bk) {
-        const t = bk.tickets.find(t => String(t.attendeeKey) === String(parsed.place))
-               || bk.tickets[parseInt(parsed.place) - 1];
-        if (t) ticketName = t.ticketName;
-      }
-    }
-
-    if (!ticketName && attendee.ticket_id) {
-      // Look up from upcomingEvents ticket list
-      for (const ev of upcomingEvents) {
-        const evTicket = (ev.tickets || []).find(t => String(t.id) === String(attendee.ticket_id));
-        if (evTicket) { ticketName = evTicket.name; break; }
-      }
-    }
-
-    if (!ticketName) ticketName = 'MEC Ticket';
-    
-    const checkedIn  = !!(attendee.checked_in || attendee.checkin_status || attendee.status === 'checked_in');
-    const ticketKey  = `${parsed.invoiceID}-${parsed.place || '0'}`;
-
-    return {
-      id: parsed.invoiceID,
-      orderNumber: String(parsed.invoiceID),
-      name,
-      email: (attendee.email || parsed.email || '').toLowerCase(),
-      ticketName,
-      isVip: /vip/i.test(ticketName) || !!(bookingMapTicket?.isVip),
-      isTM: false, isComp: false,
-      table: attendee.table || null,
-      guestOf: null, hostCategory: null, guestNotes: null,
-      qty: attendees.length || parseInt(parsed.place) || 1,
-      checkedInTickets: checkedIn ? [ticketKey] : [],
-      checkedIn,
-      eventDay: detectDay(ticketName),
-      ticketStartTime: attendee.start_time || null,
-      _mecTicket: true,
-      _mecCode: code,
-      _invoiceID: parsed.invoiceID,
-      _place: parsed.place,
-      _hash: parsed.hash,
-      _ticketKey: ticketKey
-    };
-  } catch(e) {
-    console.warn('MEC lookup failed:', e.message);
-    return null;
-  }
+  return {
+    id: invoiceID,
+    orderNumber: String(invoiceID),
+    name,
+    email: (bookingMapEntry?.email || parsed.email || '').toLowerCase(),
+    ticketName,
+    isVip,
+    isTM: false, isComp: false,
+    table: null, guestOf: null, hostCategory: null, guestNotes: null,
+    qty: bookingMapEntry?.tickets?.length || parseInt(place) || 1,
+    checkedInTickets: checkedIn ? [ticketKey] : [],
+    checkedIn,
+    eventDay: detectDay(ticketName),
+    ticketStartTime: null,
+    _mecTicket: true,
+    _mecCode: code,
+    _invoiceID: invoiceID,
+    _place: place,
+    _hash: parsed.hash,
+    _ticketKey: ticketKey,
+    _eventId: bookingMapEntry?._eventId || ''
+  };
 }
 
 async function mecWriteCheckin(code, mecGuest) {
@@ -3264,7 +3361,8 @@ async function mecWriteCheckin(code, mecGuest) {
     const invoiceID = mecGuest._invoiceID || mecGuest.orderNumber;
     const place     = mecGuest._place;
     if (!invoiceID || !place) { console.warn('MEC checkin: missing invoiceID or place'); return null; }
-    const url = `${cfg.siteUrl}/wp-json/fd2/v1/checkin?invoice_id=${encodeURIComponent(invoiceID)}&place=${encodeURIComponent(place)}`;
+    const ticketNameParam = mecGuest?.ticketName && mecGuest.ticketName !== 'MEC Ticket' ? `&ticket_name=${encodeURIComponent(mecGuest.ticketName)}` : '';
+    const url = `${cfg.siteUrl}/wp-json/fd2/v1/checkin?invoice_id=${encodeURIComponent(invoiceID)}&place=${encodeURIComponent(place)}${ticketNameParam}`;
     const r = await fetch(url, { method: 'POST' });
     const data = await r.json();
     if (data.success) {
@@ -3469,7 +3567,7 @@ const WRISTBAND_IMGS = {
 function getWristbandKey(evId, entryType) {
   const et = (entryType || 'GE').toLowerCase();
   const typeKey = et === 'vip' ? 'vip' : et === 'aaa' ? 'aaa' : et === 'staff' ? 'staff' : 'ge';
-  const evMap = { '30589': 'ld', '30590': 'ibiza', '30591': 's54' };
+  const evMap = { '35616': 'ld', '35636': 'ibiza', '35637': 's54' };
   const evKey = evMap[String(evId)];
   if (!evKey) return null;
   return `${evKey}_${typeKey}`;
@@ -3483,9 +3581,9 @@ function showEnt(g) {
   let evId = String(g._eventId || '');
   if (!evId || evId === 'undefined') {
     const t = ((g.ticketName || '') + ' ' + (g.eventTitle || '')).toLowerCase();
-    if (t.includes('ladies')) evId = '30589';
-    else if (t.includes('ibiza') || t.includes('white party')) evId = '30590';
-    else if (t.includes('studio')) evId = '30591';
+    if (t.includes('ladies')) evId = '35616';
+    else if (t.includes('ibiza') || t.includes('white party')) evId = '35636';
+    else if (t.includes('studio')) evId = '35637';
   }
 
   const entryType = (g.entryType || (g.isVip ? 'VIP' : 'GE')).toUpperCase();
@@ -3495,7 +3593,7 @@ function showEnt(g) {
   const iconEl = el.querySelector('.eb-icon');
   const imgHtml = wbSrc ? `<img src="${wbSrc}">` : null;
 
-  const evColours = { '30589': '#5BB8E8', '30590': '#F04E30', '30591': '#E91E8C' };
+  const evColours = { '35616': '#5BB8E8', '35636': '#F04E30', '35637': '#E91E8C' };
 
   if (entryType === 'VIP') {
     el.className = 'ent-banner vip';
@@ -3676,7 +3774,7 @@ function renderDoorStats() {
   const rows = Object.entries(DOOR_TICKETS).map(([code, dt]) => {
     const count = counts[code] || 0;
     const pct = Math.round(count / dt.limit * 100);
-    const evColours = { '30589': '#5BB8E8', '30590': '#F04E30', '30591': '#E91E8C' };
+    const evColours = { '35616': '#5BB8E8', '35636': '#F04E30', '35637': '#E91E8C' };
     const col = evColours[dt.event] || '#22224C';
     return `<div style="background:var(--card);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:12px;">
       <div style="width:12px;height:12px;border-radius:50%;background:${col};flex-shrink:0;"></div>
