@@ -3785,20 +3785,34 @@ function renderEventCards() {
   const el = document.getElementById('event-cards');
   if (!el) return;
 
-  // Group bookings by category
+  // Group bookings by category and event day
   const eventMap = {};
   const eventIdNames = {'35616':'Ladies Day','35636':'Ibiza White Party','35637':'Studio 54','35638':'Brunch on the Banks'};
+  const dayNames = {'Thu':'Ladies Day','Fri':'Ibiza White Party','Sat':'Studio 54'};
 
   Object.values(bookingMap).forEach(b => {
     let key;
     if (b.source === 'mec') {
       key = eventIdNames[String(b._eventId)] || b.eventTitle || 'MEC Ticket';
     } else if (b.source === 'sheet') {
-      if (b.isRemenham) key = '🏡 Remenham Farm';
-      else if (b.guestType && (b.guestType.toLowerCase().includes('dj') || b.guestType.toLowerCase().includes('artist'))) key = '🎧 DJs & Artists';
-      else if (b.guestType && b.guestType.toLowerCase().includes('entertain')) key = '🎭 Entertainers';
-      else if (b.guestType && (b.guestType.toLowerCase().includes('staff') || b.guestType.toLowerCase().includes('crew') || b.guestType.toLowerCase().includes('resource'))) key = '👷 Staff';
-      else key = '🎁 Guests';
+      // Get event day label
+      const evDay = b.eventDay ? (dayNames[b.eventDay] || b.eventDay) : null;
+      const evIds = b.eventIds || [];
+      let evLabel = evDay;
+      if (!evLabel && evIds.length > 0) evLabel = eventIdNames[String(evIds[0])] || null;
+      if (!evLabel) evLabel = 'All Events';
+
+      if (b.isRemenham) {
+        key = '🏡 RF — ' + evLabel;
+      } else if (b.guestType && (b.guestType.toLowerCase().includes('dj') || b.guestType.toLowerCase().includes('artist'))) {
+        key = '🎧 DJs — ' + evLabel;
+      } else if (b.guestType && b.guestType.toLowerCase().includes('entertain')) {
+        key = '🎭 Entertainers — ' + evLabel;
+      } else if (b.guestType && (b.guestType.toLowerCase().includes('staff') || b.guestType.toLowerCase().includes('crew') || b.guestType.toLowerCase().includes('resource'))) {
+        key = '👷 Staff — ' + evLabel;
+      } else {
+        key = '🎁 Guests — ' + evLabel;
+      }
     } else if (b.source === 'wc') {
       key = eventIdNames[String(b._eventId)] || b.eventTitle || 'WC Order';
     } else {
@@ -3807,16 +3821,6 @@ function renderEventCards() {
     if (!eventMap[key]) eventMap[key] = { bookings:[], title: key };
     eventMap[key].bookings.push(b);
   });
-
-  // Sort cards in correct order: ticket events first, then RF, then guests/DJs/staff
-  const ORDER = ['Ladies Day','Ibiza White Party','Studio 54','Brunch on the Banks','🏡 Remenham Farm','🎁 Guests','🎧 DJs & Artists','🎭 Entertainers','👷 Staff'];
-  const sortedEventMap = {};
-  ORDER.forEach(k => { if (eventMap[k]) sortedEventMap[k] = eventMap[k]; });
-  Object.keys(eventMap).forEach(k => { if (!sortedEventMap[k]) sortedEventMap[k] = eventMap[k]; });
-  Object.assign(eventMap, sortedEventMap);
-  // Reorder keys
-  Object.keys(eventMap).forEach(k => delete eventMap[k]);
-  Object.assign(eventMap, sortedEventMap);
 
   if (!Object.keys(eventMap).length) {
     el.innerHTML = '<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px;">No events loaded</div>';
