@@ -177,7 +177,7 @@ async function loadFirebaseSent() {
   } catch(e) { console.warn('Firebase rfIssued load failed:', e.message); }
 }
 
-async function loadData() {
+window.loadData = async function loadData() {
   const btn = document.getElementById('load-btn');
   const spinner = document.getElementById('load-spinner');
   btn.disabled = true; spinner.style.display = 'inline-block';
@@ -212,7 +212,7 @@ async function loadData() {
   btn.disabled = false; spinner.style.display = 'none';
 }
 
-function renderResults() {
+window.renderResults = function renderResults() {
   const newTickets = allTickets.filter(t => !sentIds.has(t.itemId));
 
   document.getElementById('stat-total').textContent = allTickets.length;
@@ -270,7 +270,7 @@ async function loadImageAsBase64(url) {
   });
 }
 
-async function generatePDFs() {
+window.generatePDFs = async function generatePDFs() {
   const newTickets = allTickets.filter(t => !sentIds.has(t.itemId));
   if (!newTickets.length) return;
 
