@@ -239,9 +239,9 @@ function renderList() {
 
     const emailBody = `Dear ${t.firstName},
 
-We recently sent you your entry QR code for *${evt === 'Ibiza White Party' ? 'the ' + evt : evt}* on *${evtDate}*.
+We recently sent you your entry QR code for ${evt === 'Ibiza White Party' ? 'the ' + evt : evt} on ${evtDate}.
 
-We realised we only sent one QR code for your booking of ${t.qty} tickets. Please find your additional QR code${additionalCount > 1 ? 's' : ''} attached — each person in your party will need their own code to enter the Funky Dory enclosure at *${evt === 'Ibiza White Party' ? 'the ' + evt : evt}*. Please keep your original email which contains QR code 1 of ${t.qty}.
+We realised we only sent one QR code for your booking of ${t.qty} tickets. Please find your additional QR code${additionalCount > 1 ? 's' : ''} attached — each person in your party will need their own code to enter the Funky Dory enclosure at ${evt === 'Ibiza White Party' ? 'the ' + evt : evt}. Please keep your original email which contains QR code 1 of ${t.qty}.
 
 Please bring your QR code with you — our door team will scan it on arrival.
 
