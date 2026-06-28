@@ -167,7 +167,7 @@ async function loadData() {
     const rfRows = await fetchCSV(RF_GID);
     const dataRows = rfRows.slice(1).filter(r => r[0] && r[16]);
 
-    allAttendees = dataRows.map(r => ({
+    const rawAttendees = dataRows.map(r => ({
       itemId:    (r[38] || '').trim(),
       orderId:   (r[0]  || '').trim(),
       firstName: (r[16] || '').trim(),
@@ -175,9 +175,21 @@ async function loadData() {
       name:      [(r[16]||'').trim(), (r[17]||'').trim()].filter(Boolean).join(' '),
       email:     (r[20] || '').trim().toLowerCase(),
       itemName:  (r[40] || '').trim(),
+      qty:       parseInt(r[43] || '1') || 1
     })).filter(t => t.itemId && t.name && t.email);
 
-    const newCount = allAttendees.filter(t => !sentIds.has(t.itemId)).length;
+    // Expand by quantity
+    allAttendees = [];
+    rawAttendees.forEach(t => {
+      for (let q = 1; q <= t.qty; q++) {
+        const ticketKey = t.qty > 1 ? t.itemId + '_' + q : t.itemId;
+        allAttendees.push({...t, ticketKey, ticketNum: q,
+          displayName: t.qty > 1 ? `${t.name} (Ticket ${q} of ${t.qty})` : t.name
+        });
+      }
+    });
+
+    const newCount = allAttendees.filter(t => !sentIds.has(t.ticketKey || t.itemId)).length;
     statusEl.className = 'status-bar ok';
     statusEl.textContent = `✓ Loaded ${allAttendees.length} attendees — ${newCount} new, ${sentIds.size} already sent.`;
 
@@ -208,8 +220,8 @@ function renderList() {
   const q = document.getElementById('search').value.toLowerCase();
   let filtered = allAttendees;
 
-  if (activeFilter === 'new') filtered = filtered.filter(t => !sentIds.has(t.itemId));
-  else if (activeFilter === 'sent') filtered = filtered.filter(t => sentIds.has(t.itemId));
+  if (activeFilter === 'new') filtered = filtered.filter(t => !sentIds.has(t.ticketKey || t.itemId));
+  else if (activeFilter === 'sent') filtered = filtered.filter(t => sentIds.has(t.ticketKey || t.itemId));
   else if (activeFilter !== 'all') filtered = filtered.filter(t => eventName(t.itemName) === activeFilter);
 
   if (q) filtered = filtered.filter(t => t.name.toLowerCase().includes(q) || t.email.includes(q));
@@ -217,7 +229,7 @@ function renderList() {
   document.getElementById('count').textContent = `${filtered.length} attendee${filtered.length !== 1 ? 's' : ''}`;
 
   document.getElementById('list').innerHTML = filtered.map(t => {
-    const isSent = sentIds.has(t.itemId);
+    const isSent = sentIds.has(t.ticketKey || t.itemId);
     const initials = t.name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
     const evt = eventName(t.itemName);
     const evtDate = eventDate(t.itemName);
@@ -253,7 +265,7 @@ This is shaping up to be an amazing event — we can't wait to see you there!`;
         <div style="display:flex;gap:6px;flex-shrink:0">
           <button class="btn" onclick="toggleCompose('${t.itemId}')">✏️ Preview</button>
           <button class="btn primary" onclick="openEmail('${t.itemId}')" ${isSent ? 'style="display:none"' : ''}>📧 Open in Mail</button>
-          ${isSent ? '' : `<button class="btn" onclick="markSent('${t.itemId}','${t.name}','${evt}')" style="border-color:#aad9b0;color:#1a5e24">✓ Mark Sent</button>`}
+          ${isSent ? '' : `<button class="btn" onclick="markSent('${t.ticketKey || t.itemId}','${t.name}','${evt}')" style="border-color:#aad9b0;color:#1a5e24">✓ Mark Sent</button>`}
         </div>
       </div>
       <div class="compose" id="compose-${t.itemId}">
@@ -264,7 +276,7 @@ This is shaping up to be an amazing event — we can't wait to see you there!`;
         <div class="cta">
           <button class="btn" onclick="toggleCompose('${t.itemId}')">Close</button>
           <button class="btn primary" onclick="openEmailFromCompose('${t.itemId}','${encodeURIComponent(t.email)}','${encodeURIComponent(subject)}')">📧 Open in Mail</button>
-          <button class="btn" onclick="markSent('${t.itemId}','${t.name}','${evt}')" style="border-color:#aad9b0;color:#1a5e24">✓ Mark as Sent</button>
+          <button class="btn" onclick="markSent('${t.ticketKey || t.itemId}','${t.name}','${evt}')" style="border-color:#aad9b0;color:#1a5e24">✓ Mark as Sent</button>
         </div>
       </div>
     </div>`;
