@@ -134,6 +134,11 @@ document.getElementById('loadBtn').onclick = async function() {
     }).filter(function(t) { return t.itemId && t.name && t.email && t.qty > 1; });
 
     // One booking per person, additional keys only
+    raw.sort(function(a,b) {
+      var sA = a.lastName.toLowerCase(), sB = b.lastName.toLowerCase();
+      if (sA < sB) return -1; if (sA > sB) return 1;
+      return a.firstName.toLowerCase().localeCompare(b.firstName.toLowerCase());
+    });
     bookings = raw.map(function(t) {
       var addKeys = [];
       for (var q = 2; q <= t.qty; q++) addKeys.push(t.itemId + '_' + q);
