@@ -83,17 +83,18 @@ textarea.msg{width:100%;border:1px solid #ddd;border-radius:8px;padding:10px;fon
   </div>
 </div>
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, set, get, child } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-const app = initializeApp({
-  apiKey: "AIzaSyAM15tgoOUAgJcFxJ_pcXM-lLQb9PL1zu4",
-  databaseURL: "https://funky-dory-fdscan-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "funky-dory-fdscan",
-  appId: "1:459595303067:web:00e1f195dd0a1d659a9e3e"
-});
-const db = getDatabase(app);
-window._fb = { db, ref, set, get, child };
+<script>
+// Firebase via REST API — no module imports needed
+const FB_URL = 'https://funky-dory-fdscan-default-rtdb.europe-west1.firebasedatabase.app';
+window._fb = {
+  get: async function(path) {
+    const r = await fetch(FB_URL + '/' + path + '.json');
+    return r.ok ? r.json() : null;
+  },
+  set: async function(path, data) {
+    await fetch(FB_URL + '/' + path + '.json', {method:'PUT', body: JSON.stringify(data)});
+  }
+};
 </script>
 
 <script>
@@ -306,14 +307,9 @@ function openEmailFromCompose(itemId, encodedEmail, encodedSubject) {
 
 async function markSent(itemId, name, evt) {
   sentIds.add(itemId);
-  if (window._fb) {
-    try {
-      await window._fb.set(
-        window._fb.ref(window._fb.db, `rfIssued/${itemId}`),
-        { name, event: evt, sentDate: new Date().toISOString().slice(0,10), qrUrl: qrUrl(itemId) }
-      );
-    } catch(e) { console.warn('Firebase write failed:', e); }
-  }
+  try {
+    await window._fb.set('rfIssued/' + itemId, { name, event: evt, sentDate: new Date().toISOString().slice(0,10) });
+  } catch(e) { console.warn('Firebase write failed:', e); }
   renderList();
 }
 </script>
