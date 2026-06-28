@@ -159,15 +159,18 @@ document.getElementById('loadBtn').onclick = async function() {
     bookings = raw;
 
     var total = bookings.length;
+    var totalTickets = bookings.reduce(function(s,b) { return s + b.qty; }, 0);
     var newOnes = bookings.filter(function(b) { return !isSent(b); }).length;
+    var newTickets = bookings.filter(function(b) { return !isSent(b); }).reduce(function(s,b) { return s + b.qty; }, 0);
     var sent = total - newOnes;
 
     statusEl.className = 'status ok';
-    statusEl.textContent = 'Loaded ' + total + ' bookings.';
+    statusEl.textContent = 'Loaded ' + total + ' bookings / ' + totalTickets + ' tickets.';
     document.getElementById('summary').innerHTML =
-      '<div class="summary-item">📋 Total: ' + total + '</div>' +
-      '<div class="summary-item" style="color:#166534">✅ Sent: ' + sent + '</div>' +
-      '<div class="summary-item" style="color:#9F1239">📬 New: ' + newOnes + '</div>';
+      '<div class="summary-item">📋 Bookings: ' + total + '</div>' +
+      '<div class="summary-item">🎫 Tickets: ' + totalTickets + '</div>' +
+      '<div class="summary-item" style="color:#166534">✅ Sent: ' + sent + ' bookings</div>' +
+      '<div class="summary-item" style="color:#9F1239">📬 New: ' + newOnes + ' bookings / ' + newTickets + ' tickets</div>';
     render();
   } catch(e) {
     statusEl.className = 'status error';
