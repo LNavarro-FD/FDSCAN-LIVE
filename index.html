@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v9.9.14</title>
+<title>FD Door Scanner v9.9.15</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -614,7 +614,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v9.9.14 LIVE</div>
+    <div class="brand-sub">Door Scanner · v9.9.15 LIVE</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -630,7 +630,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v9.9.14 LIVE</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v9.9.15 LIVE</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -953,7 +953,7 @@ input::placeholder { color: #999; }
 // ═══════════════════════════════════════════
 //  AUTO-UPDATE CHECK
 // ═══════════════════════════════════════════
-const APP_VERSION = '9.9.14';
+const APP_VERSION = '9.9.15';
 (function checkForUpdate() {
   fetch(window.location.href.split('?')[0] + '?_v=' + Date.now(), { cache: 'no-store' })
     .then(r => r.text())
@@ -3849,7 +3849,15 @@ function renderEventCards() {
   const sortedEventMap = {};
   sortedKeys.forEach(k => sortedEventMap[k] = eventMap[k]);
 
-  const eventMap2 = sortedEventMap;
+  // Split into BY EVENT and CREW & TALENT
+  const crewPrefixes = ['\u{1F3A7} DJs', '\u{1F477} Staff', '\u{1F3AD} Entertainers'];
+  const byEventMap = {}, crewMap = {};
+  Object.entries(sortedEventMap).forEach(([k,v]) => {
+    if (crewPrefixes.some(p => k.startsWith(p))) crewMap[k] = v;
+    else byEventMap[k] = v;
+  });
+
+  const eventMap2 = byEventMap;
   if (!Object.keys(eventMap2).length) {
     el.innerHTML = '<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px;">No events loaded</div>';
     return;
@@ -3858,47 +3866,61 @@ function renderEventCards() {
   const colors = ['var(--pink)','#0050B3','#00A85A','#C06000','#8e44ad','#16a085'];
   let ci = 0;
 
-  el.innerHTML = Object.values(eventMap2).map(ev => {
-    const totalTickets   = ev.bookings.reduce((s,b) => s + b.tickets.length, 0);
-    const admittedTickets = ev.bookings.reduce((s,b) => s + getBookingAdmittedCount(b), 0);
-    const remaining      = totalTickets - admittedTickets;
-    const pct            = totalTickets > 0 ? Math.round(admittedTickets / totalTickets * 100) : 0;
-    const col            = colors[ci++ % colors.length];
-    // Shorten long event titles
-    const shortTitle = ev.title
-      .replace(/copy of /i, '')
-      .replace(/funky dory\s*/i, '')
-      .replace(/during henley\s*(royal\s*)?regatta\s*/i, '')
-      .replace(/meets\s*/i, '× ')
-      .replace(/\s*[-–]\s*\d{2}[./]\d{2}([./]\d{2,4})?/g, '')
-      .replace(/\(SCAN TEST[^)]*\)/i, '')
-      .replace(/\s{2,}/g, ' ')
-      .trim();
+  const themes = ['Ladies Day','Ibiza White Party','Studio 54','Brunch on the Banks'];
+  const themeColors = {'Ladies Day':'#0050B3','Ibiza White Party':'var(--pink)','Studio 54':'#00A85A','Brunch on the Banks':'#C06000'};
+  const colors = ['var(--pink)','#0050B3','#00A85A','#C06000','#8e44ad','#16a085'];
+  let ci = 0;
 
+  function renderStatCard(ev, col) {
+    const totalTickets    = ev.bookings.reduce((s,b) => s + b.tickets.length, 0);
+    const admittedTickets = ev.bookings.reduce((s,b) => s + getBookingAdmittedCount(b), 0);
+    const remaining       = totalTickets - admittedTickets;
+    const pct             = totalTickets > 0 ? Math.round(admittedTickets / totalTickets * 100) : 0;
+    const shortTitle = ev.title
+      .replace(/copy of /i,'').replace(/funky dory\s*/i,'')
+      .replace(/during henley\s*(royal\s*)?regatta\s*/i,'')
+      .replace(/meets\s*/i,'\u00d7 ').replace(/\s*[-\u2013]\s*\d{2}[./]\d{2}([./]\d{2,4})?/g,'')
+      .replace(/\(SCAN TEST[^)]*\)/i,'').replace(/\s{2,}/g,' ').trim();
     return `<div class="ev-card">
-      <div class="ev-card-header">
-        <div class="ev-card-title" style="color:${col}">${shortTitle || ev.title}</div>
-        <div class="ev-card-sub">${ev.bookings.length} booking${ev.bookings.length!==1?'s':''} · ${totalTickets} ticket${totalTickets!==1?'s':''}</div>
-      </div>
-      <div class="ev-card-stats">
-        <div class="ev-stat">
-          <div class="ev-stat-num" style="color:${col}">${admittedTickets}</div>
-          <div class="ev-stat-lbl">In</div>
-        </div>
-        <div class="ev-stat">
-          <div class="ev-stat-num">${remaining}</div>
-          <div class="ev-stat-lbl">Remaining</div>
-        </div>
-        <div class="ev-stat">
-          <div class="ev-stat-num" style="color:${col}">${pct}%</div>
-          <div class="ev-stat-lbl">Admitted</div>
-        </div>
-      </div>
-      <div class="ev-progress-wrap">
-        <div class="ev-progress-bar" style="width:${pct}%;background:${col}"></div>
-      </div>
-    </div>`;
-  }).join('');
+  <div class="ev-card-header">
+    <div class="ev-card-title" style="color:${col}">${shortTitle || ev.title}</div>
+    <div class="ev-card-sub">${ev.bookings.length} booking${ev.bookings.length!==1?'s':''} &middot; ${totalTickets} ticket${totalTickets!==1?'s':''}</div>
+  </div>
+  <div class="ev-card-stats">
+    <div class="ev-stat"><div class="ev-stat-num" style="color:${col}">${admittedTickets}</div><div class="ev-stat-lbl">In</div></div>
+    <div class="ev-stat"><div class="ev-stat-num">${remaining}</div><div class="ev-stat-lbl">Remaining</div></div>
+    <div class="ev-stat"><div class="ev-stat-num" style="color:${col}">${pct}%</div><div class="ev-stat-lbl">Admitted</div></div>
+  </div>
+  <div class="ev-progress-wrap"><div class="ev-progress-bar" style="width:${pct}%;background:${col}"></div></div>
+</div>`;
+  }
+
+  // BY EVENT section with theme totals
+  let byEventHtml = '';
+  themes.forEach(theme => {
+    const themeCards = Object.values(byEventMap).filter(ev => ev.title.includes(theme));
+    if (!themeCards.length) return;
+    const col = themeColors[theme] || 'var(--pink)';
+    const totalTheme = themeCards.reduce((s,ev) => s + ev.bookings.reduce((ss,b) => ss + b.tickets.length, 0), 0);
+    const admTheme   = themeCards.reduce((s,ev) => s + ev.bookings.reduce((ss,b) => ss + getBookingAdmittedCount(b), 0), 0);
+    byEventHtml += `<div style="font-weight:900;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:${col};padding:14px 0 4px">${theme} &mdash; ${admTheme}/${totalTheme}</div>`;
+    byEventHtml += themeCards.map(ev => renderStatCard(ev, col)).join('');
+  });
+
+  // CREW & TALENT section
+  let crewHtml = '';
+  themes.forEach(theme => {
+    const themeCrewCards = Object.values(crewMap).filter(ev => ev.title.includes(theme));
+    if (!themeCrewCards.length) return;
+    const col = themeColors[theme] || '#555';
+    crewHtml += `<div style="font-weight:900;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:${col};padding:14px 0 4px">${theme}</div>`;
+    crewHtml += themeCrewCards.map(ev => renderStatCard(ev, col)).join('');
+  });
+
+  el.innerHTML =
+    '<div style="font-weight:900;font-size:11px;letter-spacing:.08em;color:#888;text-transform:uppercase;padding:8px 0">By Event</div>' +
+    byEventHtml +
+    (Object.keys(crewMap).length ? '<div style="font-weight:900;font-size:11px;letter-spacing:.08em;color:#888;text-transform:uppercase;padding:16px 0 8px;border-top:1px solid #eee;margin-top:8px">Crew &amp; Talent</div>' + crewHtml : '');
 }
 
 // ═══════════════════════════════════════════
