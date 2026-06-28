@@ -102,9 +102,9 @@ const SHEET_ID = '1qy9_HFxFZg9L3M2UzV_cSMesZp6UdYJZmlR-k9d3OCc';
 const RF_GID = '630690329';
 const APP_URL = 'https://lnavarro-fd.github.io/FDSCAN-LIVE';
 
-let allAttendees = [];
-let sentIds = new Set();
-let activeFilter = 'all';
+var allAttendees = []; window.allAttendees = allAttendees;
+var sentIds = new Set(); window.sentIds = sentIds;
+var activeFilter = 'all';
 
 function qrUrl(itemId) {
   return `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(APP_URL + '?rf=' + itemId)}&size=400x400&margin=10`;
@@ -181,7 +181,7 @@ async function loadData() {
 
     // One entry per booking — only show bookings with qty > 1 that need apology emails
     // (ticket 1 was already sent, tickets 2+ need to be sent)
-    allAttendees = rawAttendees.map(t => ({
+    allAttendees = window.allAttendees = rawAttendees.map(t => ({
       ...t,
       ticketKey: t.itemId + '_1', // reference ticket 1 (already sent)
       additionalKeys: Array.from({length: t.qty - 1}, (_, i) => t.itemId + '_' + (i + 2)),
