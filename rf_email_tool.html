@@ -240,7 +240,7 @@ function renderList() {
     const emailBody = isAdditionalTicket
       ? `Dear ${t.firstName},
 
-We hope you're looking forward to joining us at ${evt} on ${evtDate}.
+We hope you're looking forward to joining us at *${evt}* on *${evtDate}*.
 
 We recently sent you your entry QR code, however we realised we only sent one code for your booking. Please find your additional entry QR code attached — each person in your party will need their own code to enter the Funky Dory enclosure.
 
@@ -252,7 +252,7 @@ https://henleyregatta.com/product/evening-parking-pass/
 We apologise for any inconvenience and look forward to welcoming you and your guests!`
       : `Dear ${t.firstName},
 
-We are looking forward to welcoming you to ${evt} on ${evtDate}.
+We are looking forward to welcoming you to *${evt}* on *${evtDate}*.
 
 As you made your booking through Remenham Farm, you will need the QR code attached to this email to gain entry into the Funky Dory enclosure.
 
