@@ -293,27 +293,29 @@ async function generatePDFs() {
 
   // Download in batches to avoid Safari memory issues
   var batchSize = 15;
-  var batches = Math.ceil(newOnes.length / batchSize);
+  var allFiles = Object.keys(zip.files);
+  var batches = Math.ceil(allFiles.length / batchSize);
   for (var b = 0; b < batches; b++) {
     var batchZip = new JSZip();
     var start = b * batchSize;
-    var end = Math.min(start + batchSize, newOnes.length);
-    for (var k = start; k < end; k++) {
-      var fname = 'RF_Ticket_' + newOnes[k].name.replace(/[^a-z0-9]/gi,'_') + '.pdf';
-      // Get file from main zip
-      var fileData = await zip.file(fname).async('arraybuffer');
-      batchZip.file(fname, fileData);
+    var end2 = Math.min(start + batchSize, allFiles.length);
+    for (var k = start; k < end2; k++) {
+      var fname = allFiles[k];
+      var fileObj = zip.file(fname);
+      if (fileObj) {
+        var fileData = await fileObj.async('arraybuffer');
+        batchZip.file(fname, fileData);
+      }
     }
     var bblob = await batchZip.generateAsync({type:'blob'});
-    var a = document.createElement('a');
-    a.href = URL.createObjectURL(bblob);
-    a.download = 'RF_QR_Tickets_Batch' + (b+1) + '_' + new Date().toISOString().slice(0,10) + '.zip';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    await new Promise(function(r) { setTimeout(r, 1000); });
+    var a2 = document.createElement('a');
+    a2.href = URL.createObjectURL(bblob);
+    a2.download = 'RF_QR_Tickets_Batch' + (b+1) + '_' + new Date().toISOString().slice(0,10) + '.zip';
+    document.body.appendChild(a2);
+    a2.click();
+    document.body.removeChild(a2);
+    await new Promise(function(res) { setTimeout(res, 1000); });
   }
-
   document.getElementById('progText').textContent = 'Done! ' + newOnes.length + ' PDFs downloaded. Now go to Step 2 to send emails.';
   document.getElementById('sNew').textContent = '0';
   document.getElementById('sSent').textContent = allTickets.length;
