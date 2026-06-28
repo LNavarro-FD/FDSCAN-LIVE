@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v9.9.13</title>
+<title>FD Door Scanner v9.9.14</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -614,7 +614,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v9.9.13 LIVE</div>
+    <div class="brand-sub">Door Scanner · v9.9.14 LIVE</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -630,7 +630,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v9.9.13 LIVE</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v9.9.14 LIVE</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -953,7 +953,7 @@ input::placeholder { color: #999; }
 // ═══════════════════════════════════════════
 //  AUTO-UPDATE CHECK
 // ═══════════════════════════════════════════
-const APP_VERSION = '9.9.13';
+const APP_VERSION = '9.9.14';
 (function checkForUpdate() {
   fetch(window.location.href.split('?')[0] + '?_v=' + Date.now(), { cache: 'no-store' })
     .then(r => r.text())
@@ -3836,24 +3836,15 @@ function renderEventCards() {
     eventMap[key].bookings.push(b);
   });
 
-  // Sort: group by event theme, tickets first then guests/DJs/staff within each theme
-  const eventOrder = ['Ladies Day', 'Ibiza White Party', 'Studio 54', 'Brunch on the Banks'];
-  const categoryOrder = ['🎫 Tickets', '🎁 Guests', '🎧 DJs', '🎭 Entertainers', '👷 Staff', '🏡 RF'];
-  const timeOrder = ['Day', 'Evening', ''];
-
+  // Sort: MEC events first, then sheet categories
+  const sortOrder = ['🎫 Tickets — Ladies Day','🎫 Tickets — Ibiza White Party','🎫 Tickets — Studio 54','🎫 Tickets — Brunch on the Banks'];
   const sortedKeys = Object.keys(eventMap).sort((a, b) => {
-    // Get event index
-    const aEv = eventOrder.findIndex(e => a.includes(e));
-    const bEv = eventOrder.findIndex(e => b.includes(e));
-    if (aEv !== bEv) return (aEv === -1 ? 99 : aEv) - (bEv === -1 ? 99 : bEv);
-    // Same event — sort by category
-    const aCat = categoryOrder.findIndex(c => a.startsWith(c));
-    const bCat = categoryOrder.findIndex(c => b.startsWith(c));
-    if (aCat !== bCat) return (aCat === -1 ? 99 : aCat) - (bCat === -1 ? 99 : bCat);
-    // Same category — Day before Evening
-    const aTime = timeOrder.findIndex(t => t && a.endsWith(t));
-    const bTime = timeOrder.findIndex(t => t && b.endsWith(t));
-    return (aTime === -1 ? 99 : aTime) - (bTime === -1 ? 99 : bTime);
+    const ai = sortOrder.findIndex(s => a.startsWith(s));
+    const bi = sortOrder.findIndex(s => b.startsWith(s));
+    if (ai > -1 && bi > -1) return ai - bi;
+    if (ai > -1) return -1;
+    if (bi > -1) return 1;
+    return a.localeCompare(b);
   });
   const sortedEventMap = {};
   sortedKeys.forEach(k => sortedEventMap[k] = eventMap[k]);
@@ -3867,62 +3858,47 @@ function renderEventCards() {
   const colors = ['var(--pink)','#0050B3','#00A85A','#C06000','#8e44ad','#16a085'];
   let ci = 0;
 
-function renderCard(ev, col) {
-    const totalTickets    = ev.bookings.reduce((s,b) => s + b.tickets.length, 0);
+  el.innerHTML = Object.values(eventMap2).map(ev => {
+    const totalTickets   = ev.bookings.reduce((s,b) => s + b.tickets.length, 0);
     const admittedTickets = ev.bookings.reduce((s,b) => s + getBookingAdmittedCount(b), 0);
-    const remaining       = totalTickets - admittedTickets;
-    const pct             = totalTickets > 0 ? Math.round(admittedTickets / totalTickets * 100) : 0;
+    const remaining      = totalTickets - admittedTickets;
+    const pct            = totalTickets > 0 ? Math.round(admittedTickets / totalTickets * 100) : 0;
+    const col            = colors[ci++ % colors.length];
+    // Shorten long event titles
     const shortTitle = ev.title
-      .replace(/copy of /i, '').replace(/funky dory\s*/i, '')
+      .replace(/copy of /i, '')
+      .replace(/funky dory\s*/i, '')
       .replace(/during henley\s*(royal\s*)?regatta\s*/i, '')
-      .replace(/meets\s*/i, '\u00d7 ').replace(/\s*[-\u2013]\s*\d{2}[./]\d{2}([./]\d{2,4})?/g, '')
-      .replace(/\(SCAN TEST[^)]*\)/i, '').replace(/\s{2,}/g, ' ').trim();
+      .replace(/meets\s*/i, '× ')
+      .replace(/\s*[-–]\s*\d{2}[./]\d{2}([./]\d{2,4})?/g, '')
+      .replace(/\(SCAN TEST[^)]*\)/i, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+
     return `<div class="ev-card">
-  <div class="ev-card-header">
-    <div class="ev-card-title" style="color:${col}">${shortTitle || ev.title}</div>
-    <div class="ev-card-sub">${ev.bookings.length} booking${ev.bookings.length!==1?'s':''} &middot; ${totalTickets} ticket${totalTickets!==1?'s':''}</div>
-  </div>
-  <div class="ev-card-stats">
-    <div class="ev-stat"><div class="ev-stat-num" style="color:${col}">${admittedTickets}</div><div class="ev-stat-lbl">In</div></div>
-    <div class="ev-stat"><div class="ev-stat-num">${remaining}</div><div class="ev-stat-lbl">Remaining</div></div>
-    <div class="ev-stat"><div class="ev-stat-num" style="color:${col}">${pct}%</div><div class="ev-stat-lbl">Admitted</div></div>
-  </div>
-  <div class="ev-progress-wrap"><div class="ev-progress-bar" style="width:${pct}%;background:${col}"></div></div>
-</div>`;
-  }
-
-  // Event totals per theme
-  const themes = ['Ladies Day','Ibiza White Party','Studio 54','Brunch on the Banks'];
-  const themeColors = {'Ladies Day':'#0050B3','Ibiza White Party':'var(--pink)','Studio 54':'#00A85A','Brunch on the Banks':'#C06000'};
-
-  // Build BY EVENT section (tickets + guests + RF)
-  const byEventCats = ['\u{1F3AB} Tickets','\u{1F381} Guests','\u{1F3E1} RF'];
-  let byEventHtml = '';
-  themes.forEach(theme => {
-    const themeEntries = Object.values(byEventMap).filter(ev => ev.title.includes(theme));
-    if (!themeEntries.length) return;
-    const totalThemeTickets = themeEntries.reduce((s,ev) => s + ev.bookings.reduce((ss,b) => ss + b.tickets.length, 0), 0);
-    const admittedTheme = themeEntries.reduce((s,ev) => s + ev.bookings.reduce((ss,b) => ss + getBookingAdmittedCount(b), 0), 0);
-    const col = themeColors[theme] || 'var(--pink)';
-    byEventHtml += `<div class="ev-section-header" style="color:${col};font-weight:900;font-size:13px;text-transform:uppercase;letter-spacing:.06em;padding:12px 0 6px">${theme} &mdash; ${admittedTheme}/${totalThemeTickets} admitted</div>`;
-    byEventHtml += themeEntries.map(ev => renderCard(ev, col)).join('');
-  });
-
-  // Build CREW & TALENT section
-  const crewCatColors = {'\u{1F3A7} DJs':'#8e44ad','\u{1F3AD} Entertainers':'#16a085','\u{1F477} Staff':'#2c3e50'};
-  let crewHtml = '';
-  themes.forEach(theme => {
-    const themeCrewEntries = Object.values(crewMap).filter(ev => ev.title.includes(theme));
-    if (!themeCrewEntries.length) return;
-    const col = themeColors[theme] || '#555';
-    crewHtml += `<div class="ev-section-header" style="color:${col};font-weight:900;font-size:13px;text-transform:uppercase;letter-spacing:.06em;padding:12px 0 6px">${theme}</div>`;
-    crewHtml += themeCrewEntries.map(ev => renderCard(ev, col)).join('');
-  });
-
-  el.innerHTML = 
-    '<div class="ev-section-label">BY EVENT</div>' + byEventHtml +
-    (crewHtml ? '<div class="ev-section-label" style="margin-top:16px">CREW &amp; TALENT</div>' + crewHtml : '');
-}
+      <div class="ev-card-header">
+        <div class="ev-card-title" style="color:${col}">${shortTitle || ev.title}</div>
+        <div class="ev-card-sub">${ev.bookings.length} booking${ev.bookings.length!==1?'s':''} · ${totalTickets} ticket${totalTickets!==1?'s':''}</div>
+      </div>
+      <div class="ev-card-stats">
+        <div class="ev-stat">
+          <div class="ev-stat-num" style="color:${col}">${admittedTickets}</div>
+          <div class="ev-stat-lbl">In</div>
+        </div>
+        <div class="ev-stat">
+          <div class="ev-stat-num">${remaining}</div>
+          <div class="ev-stat-lbl">Remaining</div>
+        </div>
+        <div class="ev-stat">
+          <div class="ev-stat-num" style="color:${col}">${pct}%</div>
+          <div class="ev-stat-lbl">Admitted</div>
+        </div>
+      </div>
+      <div class="ev-progress-wrap">
+        <div class="ev-progress-bar" style="width:${pct}%;background:${col}"></div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // ═══════════════════════════════════════════
