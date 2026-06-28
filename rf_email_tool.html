@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>FD HRR 2026 — RF Additional Tickets Email Tool</title>
+<title>FD HRR 2026 — RF Email Tool</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,sans-serif;background:#f5f5f7;color:#22224C}
@@ -22,25 +22,27 @@ header p{color:rgba(255,255,255,.6);font-size:12px;margin-top:2px}
 .info{background:#eef2ff;color:#22224C}
 .error{background:#fef2f2;color:#991B1B}
 .row{background:white;border:1px solid #e0e0ee;border-radius:10px;padding:16px;margin-bottom:10px}
-.row-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .name{font-weight:700;font-size:15px}
 .meta{font-size:12px;color:#888;margin-top:3px}
 .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;background:#FFE4E6;color:#9F1239;margin-left:6px}
 .badge-sent{background:#f0fdf4;color:#166534}
 .actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
 .preview{background:#f9f9fb;border:1px solid #e0e0ee;border-radius:8px;padding:12px;margin-top:10px;font-size:13px;white-space:pre-wrap;line-height:1.6;display:none}
-.attach{background:#fff9db;border:1px solid #f0d060;border-radius:6px;padding:8px 12px;font-size:12px;margin-top:8px;display:none}
+.attach{background:#fff9db;border:1px solid #f0d060;border-radius:6px;padding:8px 12px;font-size:12px;margin-top:8px;display:none;white-space:pre-wrap}
+.summary{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}
+.summary-item{background:#f5f5f7;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600}
 </style>
 </head>
 <body>
 <header>
-  <h1>FUNKY DORY · RF Additional Tickets Email Tool</h1>
-  <p>Send apology emails with additional QR codes for multi-ticket bookings</p>
+  <h1>FUNKY DORY · RF Email Tool</h1>
+  <p>Send entry QR code emails to Remenham Farm attendees</p>
 </header>
 <div class="wrap">
   <div class="card">
     <button class="btn btn-pink" id="loadBtn">Load RF Attendees</button>
     <div id="status" class="status info" style="display:none"></div>
+    <div class="summary" id="summary"></div>
   </div>
   <div id="list"></div>
 </div>
@@ -56,7 +58,7 @@ var sentKeys = {};
 function evtName(s) {
   var n = (s||'').toLowerCase();
   if (n.indexOf('ibiza') > -1 || n.indexOf('white party') > -1) return 'Ibiza White Party';
-  if (n.indexOf('studio 54') > -1) return 'Studio 54';
+  if (n.indexOf('studio') > -1) return 'Studio 54';
   if (n.indexOf('brunch') > -1) return 'Brunch on the Banks';
   if (n.indexOf('ladies') > -1) return 'Ladies Day';
   return s;
@@ -72,12 +74,14 @@ function theEvt(s) {
   return e === 'Ibiza White Party' ? 'the Ibiza White Party' : e;
 }
 
-function qrUrl(key) {
-  return 'https://api.qrserver.com/v1/create-qr-code/?data=' + encodeURIComponent('https://lnavarro-fd.github.io/FDSCAN-LIVE?rf=' + key) + '&size=150x150&margin=5';
+function allTicketKeys(b) {
+  var keys = [b.itemId];
+  for (var q = 2; q <= b.qty; q++) keys.push(b.itemId + '_' + q);
+  return keys;
 }
 
 function isSent(b) {
-  return b.additionalKeys.some(function(k) { return sentKeys[k]; });
+  return sentKeys[b.itemId] || false;
 }
 
 async function loadFB() {
@@ -97,18 +101,22 @@ async function saveFB(key, name, evt) {
 }
 
 async function parseCSV(text) {
-  var rows = text.split('\n');
-  return rows.map(function(row) {
-    var cells = [], inQ = false, cell = '';
-    for (var i = 0; i < row.length; i++) {
-      var ch = row[i];
-      if (ch === '"') { inQ = !inQ; continue; }
-      if (ch === ',' && !inQ) { cells.push(cell.trim()); cell = ''; continue; }
-      cell += ch;
+  var rows = [], row = [], cell = '', inQ = false;
+  for (var i = 0; i < text.length; i++) {
+    var ch = text[i];
+    if (inQ) {
+      if (ch === '"' && text[i+1] === '"') { cell += '"'; i++; }
+      else if (ch === '"') inQ = false;
+      else cell += ch;
+    } else {
+      if (ch === '"') { inQ = true; }
+      else if (ch === ',') { row.push(cell.trim()); cell = ''; }
+      else if (ch === '\n') { row.push(cell.trim()); rows.push(row); row = []; cell = ''; }
+      else cell += ch;
     }
-    cells.push(cell.trim());
-    return cells;
-  });
+  }
+  if (cell || row.length) { row.push(cell.trim()); rows.push(row); }
+  return rows;
 }
 
 document.getElementById('loadBtn').onclick = async function() {
@@ -121,7 +129,7 @@ document.getElementById('loadBtn').onclick = async function() {
     var r = await fetch('https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/export?format=csv&gid=' + RF_GID + '&t=' + Date.now());
     var text = await r.text();
     var rows = await parseCSV(text);
-    var raw = rows.slice(1).filter(function(r) { return r[0] && r[16]; }).map(function(r) {
+    var raw = rows.slice(1).filter(function(r) { return r[38] && r[16]; }).map(function(r) {
       return {
         itemId: (r[38]||'').trim(),
         firstName: (r[16]||'').trim(),
@@ -131,22 +139,35 @@ document.getElementById('loadBtn').onclick = async function() {
         itemName: (r[40]||'').trim(),
         qty: parseInt(r[43]||'1') || 1
       };
-    }).filter(function(t) { return t.itemId && t.name && t.email && t.qty > 1; });
+    }).filter(function(t) { return t.itemId && t.name && t.email; });
 
-    // One booking per person, additional keys only
+    // Deduplicate by itemId (one booking per row)
+    var seen = {};
+    raw = raw.filter(function(t) {
+      if (seen[t.itemId]) return false;
+      seen[t.itemId] = true;
+      return true;
+    });
+
+    // Sort by surname then firstname
     raw.sort(function(a,b) {
       var sA = a.lastName.toLowerCase(), sB = b.lastName.toLowerCase();
       if (sA < sB) return -1; if (sA > sB) return 1;
       return a.firstName.toLowerCase().localeCompare(b.firstName.toLowerCase());
     });
-    bookings = raw.map(function(t) {
-      var addKeys = [];
-      for (var q = 2; q <= t.qty; q++) addKeys.push(t.itemId + '_' + q);
-      return Object.assign({}, t, { additionalKeys: addKeys });
-    });
+
+    bookings = raw;
+
+    var total = bookings.length;
+    var newOnes = bookings.filter(function(b) { return !isSent(b); }).length;
+    var sent = total - newOnes;
 
     statusEl.className = 'status ok';
-    statusEl.textContent = 'Loaded ' + bookings.length + ' multi-ticket bookings.';
+    statusEl.textContent = 'Loaded ' + total + ' bookings.';
+    document.getElementById('summary').innerHTML =
+      '<div class="summary-item">📋 Total: ' + total + '</div>' +
+      '<div class="summary-item" style="color:#166534">✅ Sent: ' + sent + '</div>' +
+      '<div class="summary-item" style="color:#9F1239">📬 New: ' + newOnes + '</div>';
     render();
   } catch(e) {
     statusEl.className = 'status error';
@@ -156,26 +177,34 @@ document.getElementById('loadBtn').onclick = async function() {
 
 function render() {
   var el = document.getElementById('list');
-  if (!bookings.length) { el.innerHTML = '<div class="card" style="color:#888;text-align:center">No multi-ticket bookings found.</div>'; return; }
+  if (!bookings.length) { el.innerHTML = '<div class="card" style="color:#888;text-align:center">No bookings found.</div>'; return; }
   el.innerHTML = bookings.map(function(b, idx) {
     var sent = isSent(b);
     var evt = evtName(b.itemName);
     var date = evtDate(b.itemName);
+    var multiTicket = b.qty > 1;
+
     var body = 'Dear ' + b.firstName + ',\n\n'
-      + 'We recently sent you your entry QR code for ' + theEvt(b.itemName) + ' on ' + date + '.\n\n'
-      + 'We realised we only sent one QR code for your booking of ' + b.qty + ' tickets. Please find your additional QR code' + (b.additionalKeys.length > 1 ? 's' : '') + ' attached — each person in your party will need their own code to enter the Funky Dory enclosure. Please keep your original email which contains QR code 1 of ' + b.qty + '.\n\n'
-      + 'Please bring your QR code with you — our door team will scan it on arrival.\n\n'
-      + 'If you need to book parking, you should pre-book evening parking here:\nhttps://henleyregatta.com/product/evening-parking-pass/\n\n'
-      + 'We apologise for any inconvenience and look forward to welcoming you and your guests!';
-    var subject = 'Your Additional Entry QR Code' + (b.additionalKeys.length > 1 ? 's' : '') + ' — Funky Dory During Henley Royal Regatta 2026';
+      + 'We are looking forward to welcoming you to ' + theEvt(b.itemName) + ' on ' + date + '.\n\n'
+      + 'As you made your booking through Remenham Farm, you will need the QR code' + (multiTicket ? 's' : '') + ' attached to this email to gain entry into the Funky Dory enclosure.'
+      + (multiTicket ? ' You have ' + b.qty + ' tickets — please find all ' + b.qty + ' QR codes attached, one per person.' : '')
+      + '\n\nPlease bring your QR code with you — our door team will scan it on arrival. You can screenshot this email or have it ready on your phone.'
+      + '\n\nIf you need to book parking, you should pre-book evening parking here:\nhttps://henleyregatta.com/product/evening-parking-pass/'
+      + '\n\nThis is shaping up to be an amazing event — we can\'t wait to see you there!';
+
+    var subject = 'Your Entry QR Code' + (multiTicket ? 's' : '') + ' — Funky Dory During Henley Royal Regatta 2026';
     var mailto = 'mailto:' + b.email + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
-    var pdfList = b.additionalKeys.map(function(k, i) {
-      return 'RF_Ticket_' + b.name.replace(/[^a-z0-9]/gi,'_') + '_Ticket_' + (i+2) + '_of_' + b.qty + '.pdf';
+
+    var pdfList = allTicketKeys(b).map(function(k, i) {
+      return b.qty > 1
+        ? 'RF_Ticket_' + b.name.replace(/[^a-z0-9]/gi,'_') + '_Ticket_' + (i+1) + '_of_' + b.qty + '.pdf'
+        : 'RF_Ticket_' + b.name.replace(/[^a-z0-9]/gi,'_') + '.pdf';
     }).join('\n');
+
     return '<div class="row" id="row-' + idx + '">'
       + '<div class="row-top">'
-      + '<div><div class="name">' + b.name + (sent ? '<span class="badge badge-sent">✓ Sent</span>' : '<span class="badge">Needs sending</span>') + '</div>'
-      + '<div class="meta">' + b.email + ' · ' + evt + ' · ' + b.qty + ' tickets · ' + b.additionalKeys.length + ' additional QR code' + (b.additionalKeys.length > 1 ? 's' : '') + '</div></div>'
+      + '<div><div class="name">' + b.name + (sent ? '<span class="badge badge-sent">✓ Sent</span>' : '<span class="badge">New</span>') + (multiTicket ? '<span class="badge" style="background:#FEF3C7;color:#92400E">' + b.qty + ' tickets</span>' : '') + '</div>'
+      + '<div class="meta">' + b.email + ' · ' + evt + ' · ' + date + '</div></div>'
       + '</div>'
       + '<div class="actions">'
       + '<button class="btn btn-navy" onclick="togglePreview(' + idx + ')">✏️ Preview</button>'
@@ -183,7 +212,7 @@ function render() {
       + (sent ? '' : '<button class="btn btn-green" onclick="doMarkSent(' + idx + ')">✓ Mark as Sent</button>')
       + '</div>'
       + '<div class="preview" id="preview-' + idx + '">' + body + '</div>'
-      + '<div class="attach" id="attach-' + idx + '">📎 Attach these PDFs:\n' + pdfList + '</div>'
+      + '<div class="attach" id="attach-' + idx + '">📎 Attach ' + (multiTicket ? 'these PDFs' : 'this PDF') + ':\n' + pdfList + '</div>'
       + '</div>';
   }).join('');
 }
@@ -200,9 +229,11 @@ async function doMarkSent(idx) {
   var b = bookings[idx];
   if (!b) return;
   var evt = evtName(b.itemName);
-  for (var i = 0; i < b.additionalKeys.length; i++) {
-    sentKeys[b.additionalKeys[i]] = true;
-    await saveFB(b.additionalKeys[i], b.name, evt);
+  // Mark all ticket keys as sent
+  var keys = allTicketKeys(b);
+  for (var i = 0; i < keys.length; i++) {
+    sentKeys[keys[i]] = true;
+    await saveFB(keys[i], b.name, evt);
   }
   render();
 }
