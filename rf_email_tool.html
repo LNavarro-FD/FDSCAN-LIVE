@@ -178,18 +178,16 @@ async function loadData() {
       qty:       parseInt(r[43] || '1') || 1
     })).filter(t => t.itemId && t.name && t.email);
 
-    // Expand by quantity
-    allAttendees = [];
-    rawAttendees.forEach(t => {
-      for (let q = 1; q <= t.qty; q++) {
-        const ticketKey = t.qty > 1 ? t.itemId + '_' + q : t.itemId;
-        allAttendees.push({...t, ticketKey, ticketNum: q,
-          displayName: t.qty > 1 ? `${t.name} (Ticket ${q} of ${t.qty})` : t.name
-        });
-      }
-    });
+    // One entry per booking — only show bookings with qty > 1 that need apology emails
+    // (ticket 1 was already sent, tickets 2+ need to be sent)
+    allAttendees = rawAttendees.map(t => ({
+      ...t,
+      ticketKey: t.itemId + '_1', // reference ticket 1 (already sent)
+      additionalKeys: Array.from({length: t.qty - 1}, (_, i) => t.itemId + '_' + (i + 2)),
+      additionalCount: t.qty - 1
+    })).filter(t => t.qty > 1); // only show multi-ticket bookings
 
-    const newCount = allAttendees.filter(t => !sentIds.has(t.ticketKey || t.itemId)).length;
+    const newCount = allAttendees.filter(t => !sentIds.has(t.itemId + '_2')).length;
     statusEl.className = 'status-bar ok';
     statusEl.textContent = `✓ Loaded ${allAttendees.length} attendees — ${newCount} new, ${sentIds.size} already sent.`;
 
@@ -220,8 +218,8 @@ function renderList() {
   const q = document.getElementById('search').value.toLowerCase();
   let filtered = allAttendees;
 
-  if (activeFilter === 'new') filtered = filtered.filter(t => !sentIds.has(t.ticketKey || t.itemId));
-  else if (activeFilter === 'sent') filtered = filtered.filter(t => sentIds.has(t.ticketKey || t.itemId));
+  if (activeFilter === 'new') filtered = filtered.filter(t => !sentIds.has(t.itemId + '_2'));
+  else if (activeFilter === 'sent') filtered = filtered.filter(t => sentIds.has(t.itemId + '_2'));
   else if (activeFilter !== 'all') filtered = filtered.filter(t => eventName(t.itemName) === activeFilter);
 
   if (q) filtered = filtered.filter(t => t.name.toLowerCase().includes(q) || t.email.includes(q));
@@ -229,39 +227,27 @@ function renderList() {
   document.getElementById('count').textContent = `${filtered.length} attendee${filtered.length !== 1 ? 's' : ''}`;
 
   document.getElementById('list').innerHTML = filtered.map(t => {
-    const isSent = sentIds.has(t.ticketKey || t.itemId);
+    const isSent = sentIds.has(t.itemId + '_2');
     const initials = t.name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
     const evt = eventName(t.itemName);
     const evtDate = eventDate(t.itemName);
     const qr = qrUrl(t.itemId);
 
-    const isAdditionalTicket = (t.ticketNum || 1) > 1;
+    const additionalCount = t.additionalCount || (t.qty - 1);
+    const additionalKeys = t.additionalKeys || [];
 
-    const emailBody = isAdditionalTicket
-      ? `Dear ${t.firstName},
+    const emailBody = `Dear ${t.firstName},
 
-We hope you're looking forward to joining us at *${evt}* on *${evtDate}*.
+We recently sent you your entry QR code for *${evt}* on *${evtDate}*.
 
-We recently sent you your entry QR code, however we realised we only sent one code for your booking. Please find your additional entry QR code attached — each person in your party will need their own code to enter the Funky Dory enclosure.
+We realised we only sent one QR code for your booking of ${t.qty} tickets. Please find your additional QR code${additionalCount > 1 ? 's' : ''} attached — each person in your party will need their own code to enter the Funky Dory enclosure. Please keep your original email with QR code 1 of ${t.qty}.
 
-Please bring your QR code with you — our door team will scan it on arrival. You can screenshot this email or have it ready on your phone.
-
-If you need to book parking, you should pre-book evening parking here:
-https://henleyregatta.com/product/evening-parking-pass/
-
-We apologise for any inconvenience and look forward to welcoming you and your guests!`
-      : `Dear ${t.firstName},
-
-We are looking forward to welcoming you to *${evt}* on *${evtDate}*.
-
-As you made your booking through Remenham Farm, you will need the QR code attached to this email to gain entry into the Funky Dory enclosure.
-
-Please bring your QR code with you — our door team will scan it on arrival. You can screenshot this email or have it ready on your phone.
+Please bring your QR code with you — our door team will scan it on arrival.
 
 If you need to book parking, you should pre-book evening parking here:
 https://henleyregatta.com/product/evening-parking-pass/
 
-This is shaping up to be an amazing event — we can't wait to see you there!`;
+We apologise for any inconvenience and look forward to welcoming you and your guests!`;
 
     const subject = `Your Entry QR Code — Funky Dory During Henley Royal Regatta 2026`;
     const mailto = `mailto:${t.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`;
@@ -286,7 +272,7 @@ This is shaping up to be an amazing event — we can't wait to see you there!`;
       <div class="compose" id="compose-${t.itemId}">
         <div class="row"><span class="lbl">To</span><span class="val">${t.email}</span></div>
         <div class="row"><span class="lbl">Subject</span><span class="val">${subject}</span></div>
-        <div class="row"><span class="lbl">QR Code</span><span class="val"><img src="${qr}" style="width:80px;height:80px;border-radius:6px"> <span style="font-size:12px;color:#888;vertical-align:top;display:inline-block;margin-top:4px">Attach PDF from RF QR Tool</span></span></div>
+        <div class="row"><span class="lbl">Attach PDFs</span><span class="val" style="font-size:12px;color:#333">${additionalKeys.map((k,i) => `<div>📎 RF_Ticket_${t.name.replace(/[^a-z0-9]/gi,'_')}_Ticket_${i+2}_of_${t.qty}.pdf</div>`).join('') || 'Generate PDFs from RF QR Tool first'}</span></div>
         <textarea class="msg" id="msg-${t.itemId}">${emailBody}</textarea>
         <div class="cta">
           <button class="btn" onclick="toggleCompose('${t.itemId}')">Close</button>
