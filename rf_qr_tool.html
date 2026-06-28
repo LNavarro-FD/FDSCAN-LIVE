@@ -75,7 +75,7 @@ var allTickets = [];
 var sentIds = {};
 
 function qrUrl(id) {
-  return 'https://api.qrserver.com/v1/create-qr-code/?data=' + encodeURIComponent(APP_URL + '?rf=' + id) + '&size=400x400&margin=10';
+  return 'https://api.qrserver.com/v1/create-qr-code/?data=' + encodeURIComponent(APP_URL + '?rf=' + id) + '&size=200x200&margin=5';
 }
 function ticketQrUrl(t) { return qrUrl(t.ticketKey || t.itemId); }
 
@@ -268,7 +268,7 @@ async function generatePDFs() {
       doc.text(evtDate(t.itemName), W/2, 130, {align:'center'});
 
       var qrData = await loadImg(ticketQrUrl(t));
-      var qrSize = 110, qrX = (W-qrSize)/2, qrY = 140;
+      var qrSize = 90, qrX = (W-qrSize)/2, qrY = 140;
       doc.setFillColor(255,255,255); doc.roundedRect(qrX-5,qrY-5,qrSize+10,qrSize+10,4,4,'F');
       doc.setDrawColor(230,230,240); doc.roundedRect(qrX-5,qrY-5,qrSize+10,qrSize+10,4,4,'S');
       doc.addImage(qrData,'PNG',qrX,qrY,qrSize,qrSize);
