@@ -160,8 +160,8 @@ async function loadData() {
     // Load Firebase sent records
     if (window._fb) {
       try {
-        const snap = await window._fb.get(window._fb.child(window._fb.ref(window._fb.db), 'rfIssued'));
-        if (snap.exists()) Object.keys(snap.val()).forEach(id => sentIds.add(String(id)));
+        const data = await window._fb.get('rfIssued');
+        if (data) Object.keys(data).forEach(id => sentIds.add(String(id)));
       } catch(e) { console.warn('Firebase load failed:', e.message); }
     }
 
