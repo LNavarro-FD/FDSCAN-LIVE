@@ -316,6 +316,19 @@ async function markSentBooking(t, evt) {
   }
   renderList();
 }
+async function markAllAdditional(itemId, name, evt) {
+  // Find the booking and mark all additional tickets as sent
+  var t = allAttendees.find(function(a) { return a.itemId === itemId; });
+  if (!t) return;
+  var keys = t.additionalKeys && t.additionalKeys.length ? t.additionalKeys : [];
+  for (var i = 0; i < keys.length; i++) {
+    sentIds.add(keys[i]);
+    try {
+      await window._fb.set('rfIssued/' + keys[i], { name: name, event: evt, sentDate: new Date().toISOString().slice(0,10) });
+    } catch(e) { console.warn('Firebase write failed:', e); }
+  }
+  renderList();
+}
 async function markSent(itemId, name, evt) {
   sentIds.add(itemId);
   try {
