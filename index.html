@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v9.9.11</title>
+<title>FD Door Scanner v9.9.12</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -614,7 +614,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v9.9.11 LIVE</div>
+    <div class="brand-sub">Door Scanner · v9.9.12 LIVE</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -630,7 +630,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v9.9.11 LIVE</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v9.9.12 LIVE</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -953,7 +953,7 @@ input::placeholder { color: #999; }
 // ═══════════════════════════════════════════
 //  AUTO-UPDATE CHECK
 // ═══════════════════════════════════════════
-const APP_VERSION = '9.9.11';
+const APP_VERSION = '9.9.12';
 (function checkForUpdate() {
   fetch(window.location.href.split('?')[0] + '?_v=' + Date.now(), { cache: 'no-store' })
     .then(r => r.text())
@@ -3793,27 +3793,41 @@ function renderEventCards() {
   const el = document.getElementById('event-cards');
   if (!el) return;
 
-  // Group bookings by category and event
+  // Group bookings by category, event and day/evening
   const eventMap = {};
   const eventIdNames = {'35616':'Ladies Day','35636':'Ibiza White Party','35637':'Studio 54','35638':'Brunch on the Banks'};
 
+  function getTimeOfDay(ticketName) {
+    const t = (ticketName || '').toLowerCase();
+    if (t.includes('evening') || t.includes('access only') || t.includes('eve')) return 'Evening';
+    if (t.includes('brunch')) return 'Day';
+    if (t.includes('day') || t.includes('full day') || t.includes('vip')) return 'Day';
+    return null; // unknown — don't split
+  }
+
   Object.values(bookingMap).forEach(b => {
     const evName = eventIdNames[String(b._eventId)] || null;
+    // Get time of day from ticket name
+    const ticketName = b.tickets && b.tickets[0] ? b.tickets[0].ticketName : (b.eventTitle || '');
+    const tod = getTimeOfDay(ticketName);
+    const todSuffix = tod ? ' — ' + tod : '';
     let key;
 
     if (b.source === 'mec') {
-      // MEC tickets grouped by event name
-      key = '🎫 Tickets — ' + (evName || b.eventTitle || 'MEC Ticket');
+      key = '🎫 Tickets — ' + (evName || 'MEC Ticket') + todSuffix;
     } else if (b.source === 'sheet') {
       const evLabel = evName || 'All Events';
+      const sheetTod = getTimeOfDay(b.eventTitle || '');
+      const sheetTodSuffix = sheetTod ? ' — ' + sheetTod : '';
       if (b.isRemenham) key = '🏡 RF — ' + evLabel;
       else if (b.entryType === 'AAA' || (b.guestType && (b.guestType.toLowerCase().includes('dj') || b.guestType.toLowerCase().includes('artist')))) key = '🎧 DJs — ' + evLabel;
       else if (b.isEntertainment || (b.guestType && b.guestType.toLowerCase().includes('entertain'))) key = '🎭 Entertainers — ' + evLabel;
       else if (b.guestType && (b.guestType.toLowerCase().includes('staff') || b.guestType.toLowerCase().includes('crew') || b.guestType.toLowerCase().includes('resource') || b.guestType.toLowerCase().includes('bar') || b.guestType.toLowerCase().includes('production'))) key = '👷 Staff — ' + evLabel;
-      else key = '🎁 Guests — ' + evLabel;
+      else key = '🎁 Guests — ' + evLabel + sheetTodSuffix;
     } else if (b.source === 'wc') {
-      // Use event ID name only — not full WC ticket name
-      key = '🎫 Tickets — ' + (evName || 'WC Order');
+      const wcTod = getTimeOfDay(b.tickets && b.tickets[0] ? b.tickets[0].ticketName : b.eventTitle);
+      const wcTodSuffix = wcTod ? ' — ' + wcTod : '';
+      key = '🎫 Tickets — ' + (evName || 'WC Order') + wcTodSuffix;
     } else {
       key = evName || b.eventTitle || b.eventDay || 'General';
     }
