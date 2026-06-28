@@ -994,8 +994,11 @@ const DOOR_TICKETS = {
   'FD-DOOR-IB-EVE':  { label: 'Ibiza · Evening',       event: '35636', limit: 500 },
   'FD-DOOR-S54-DAY': { label: 'Studio 54 · Day',       event: '35637', limit: 500 },
   'FD-DOOR-S54-EVE': { label: 'Studio 54 · Evening',   event: '35637', limit: 500 },
-  'FD-DOOR-BR-DAY':  { label: 'Brunch · Day',          event: '35638', limit: 500 },
-  'FD-DOOR-BR-EVE':  { label: 'Brunch · Evening',      event: '35638', limit: 500 },
+  'FD-DOOR-LD-COMP':  { label: 'Ladies Day · Comp',   event: '35616', limit: 20 },
+  'FD-DOOR-IB-COMP':  { label: 'Ibiza · Comp',         event: '35636', limit: 20 },
+  'FD-DOOR-S54-COMP': { label: 'Studio 54 · Comp',     event: '35637', limit: 20 },
+  'FD-DOOR-BR-DAY':   { label: 'Brunch · Day',         event: '35638', limit: 500 },
+  'FD-DOOR-BR-COMP':  { label: 'Brunch · Comp',        event: '35638', limit: 20 },
 };
 function getDoorCounts() {
   try { return JSON.parse(localStorage.getItem('fd_door_counts') || '{}'); } catch(e) { return {}; }
