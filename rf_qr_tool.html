@@ -214,7 +214,20 @@ async function generatePDFs() {
   var jsPDF = window.jspdf.jsPDF;
 
   var logoData = null;
-  try { logoData = await loadImg('https://lnavarro-fd.github.io/FDSCAN-LIVE/fd_hrr_logo_wht.png'); } catch(e) {}
+  try {
+    // Load and resize logo to reduce PDF file size
+    const logoRaw = await loadImg('https://lnavarro-fd.github.io/FDSCAN-LIVE/fd_hrr_logo_wht.png');
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const imgEl = new Image();
+    await new Promise(function(res) { imgEl.onload = res; imgEl.src = logoRaw; });
+    // Resize to 400px wide max
+    const scale = Math.min(1, 400 / imgEl.width);
+    canvas.width = Math.round(imgEl.width * scale);
+    canvas.height = Math.round(imgEl.height * scale);
+    ctx.drawImage(imgEl, 0, 0, canvas.width, canvas.height);
+    logoData = canvas.toDataURL('image/png');
+  } catch(e) { console.warn('Logo load failed:', e); }
 
   for (var i = 0; i < newOnes.length; i++) {
     var t = newOnes[i];
