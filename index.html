@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v9.9.15</title>
+<title>FD Door Scanner v9.9.16</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -614,7 +614,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v9.9.15 LIVE</div>
+    <div class="brand-sub">Door Scanner · v9.9.16 LIVE</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -630,7 +630,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v9.9.15 LIVE</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v9.9.16 LIVE</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -953,7 +953,7 @@ input::placeholder { color: #999; }
 // ═══════════════════════════════════════════
 //  AUTO-UPDATE CHECK
 // ═══════════════════════════════════════════
-const APP_VERSION = '9.9.15';
+const APP_VERSION = '9.9.16';
 (function checkForUpdate() {
   fetch(window.location.href.split('?')[0] + '?_v=' + Date.now(), { cache: 'no-store' })
     .then(r => r.text())
@@ -2864,7 +2864,7 @@ async function lookupTicket(code) {
       const rfId = String(rfParsed.rf);
       // Find booking by item_id (stored as bookingId rf-ITEMID or in invoiceMap)
       const rfBooking = bookingMap[`rf-item-${rfId}`] ||
-        Object.values(bookingMap).find(b => b.source === 'sheet' && b.isRemenham && String(b.rfItemId) === rfId);
+        Object.values(bookingMap).find(b => b.source === 'sheet' && b.isRemenham && (String(b.rfItemId) === rfId || String(b.rfItemId) === rfId.replace(/_\d+$/, '')));
       if (!rfBooking) {
         vibrate([300, 100, 300]);
         setResult('err', '🚫', 'Not Found', `RF ticket ${rfId} not on guest list`);
