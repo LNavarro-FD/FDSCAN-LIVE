@@ -188,7 +188,7 @@ async function loadData() {
       additionalCount: t.qty - 1
     })).filter(t => t.qty > 1); // only show multi-ticket bookings
 
-    const newCount = allAttendees.filter(t => !sentIds.has(t.itemId + '_2')).length;
+    const newCount = allAttendees.filter(t => !(t.additionalKeys || [t.itemId+'_2']).some(k => sentIds.has(k))).length;
     statusEl.className = 'status-bar ok';
     statusEl.textContent = `✓ Loaded ${allAttendees.length} attendees — ${newCount} new, ${sentIds.size} already sent.`;
 
@@ -219,8 +219,8 @@ function renderList() {
   const q = document.getElementById('search').value.toLowerCase();
   let filtered = allAttendees;
 
-  if (activeFilter === 'new') filtered = filtered.filter(t => !sentIds.has(t.itemId + '_2'));
-  else if (activeFilter === 'sent') filtered = filtered.filter(t => sentIds.has(t.itemId + '_2'));
+  if (activeFilter === 'new') filtered = filtered.filter(t => !(t.additionalKeys || [t.itemId+'_2']).some(k => sentIds.has(k)));
+  else if (activeFilter === 'sent') filtered = filtered.filter(t => (t.additionalKeys || [t.itemId+'_2']).some(k => sentIds.has(k)));
   else if (activeFilter !== 'all') filtered = filtered.filter(t => eventName(t.itemName) === activeFilter);
 
   if (q) filtered = filtered.filter(t => t.name.toLowerCase().includes(q) || t.email.includes(q));
@@ -228,7 +228,7 @@ function renderList() {
   document.getElementById('count').textContent = `${filtered.length} attendee${filtered.length !== 1 ? 's' : ''}`;
 
   document.getElementById('list').innerHTML = filtered.map(t => {
-    const isSent = sentIds.has(t.itemId + '_2');
+    const isSent = (t.additionalKeys || [t.itemId+'_2']).some(k => sentIds.has(k));
     const initials = t.name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
     const evt = eventName(t.itemName);
     const evtDate = eventDate(t.itemName);
@@ -305,6 +305,17 @@ function openEmailFromCompose(itemId, encodedEmail, encodedSubject) {
   window.location.href = `mailto:${decodeURIComponent(encodedEmail)}?subject=${decodeURIComponent(encodedSubject)}&body=${encodeURIComponent(body)}`;
 }
 
+async function markSentBooking(t, evt) {
+  // Mark all additional ticket keys as sent
+  const keys = t.additionalKeys && t.additionalKeys.length ? t.additionalKeys : [t.itemId + '_2'];
+  for (const key of keys) {
+    sentIds.add(key);
+    try {
+      await window._fb.set('rfIssued/' + key, { name: t.name, event: evt, sentDate: new Date().toISOString().slice(0,10) });
+    } catch(e) { console.warn('Firebase write failed:', e); }
+  }
+  renderList();
+}
 async function markSent(itemId, name, evt) {
   sentIds.add(itemId);
   try {
