@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v9.9.20</title>
+<title>FD Door Scanner v9.9.21</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -614,7 +614,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v9.9.20 LIVE</div>
+    <div class="brand-sub">Door Scanner · v9.9.21 LIVE</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -630,7 +630,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v9.9.20 LIVE</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v9.9.21 LIVE</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -953,7 +953,7 @@ input::placeholder { color: #999; }
 // ═══════════════════════════════════════════
 //  AUTO-UPDATE CHECK
 // ═══════════════════════════════════════════
-const APP_VERSION = '9.9.20';
+const APP_VERSION = '9.9.21';
 (function checkForUpdate() {
   fetch(window.location.href.split('?')[0] + '?_v=' + Date.now(), { cache: 'no-store' })
     .then(r => r.text())
@@ -1735,7 +1735,7 @@ function parseCSV(text) {
   return rows;
 }
 
-function addSheetBooking({ key, name, email, entryType, guestType, hasLanyard, eventIds, ticketName, isComp, isRemenham, isEntertainment, isSupplier, guestOf, source, rfItemId }) {
+function addSheetBooking({ key, name, email, entryType, guestType, hasLanyard, eventIds, ticketName, isComp, isRemenham, isEntertainment, isSupplier, guestOf, source, rfItemId, rfQty, rfTicketNum }) {
   if (!name) return;
   email = (email || '').toLowerCase().trim();
   eventIds.forEach((eventId, idx) => {
@@ -1756,6 +1756,7 @@ function addSheetBooking({ key, name, email, entryType, guestType, hasLanyard, e
       entryType, guestType, hasLanyard,
       tickets: [ticket],
       source: source || 'sheet',
+      rfQty: rfQty || 1, rfTicketNum: rfTicketNum || 1,
       isComp: !!isComp, isRemenham: !!isRemenham, isEntertainment: !!isEntertainment, isSupplier: !!isSupplier, isTM: false,
       rfItemId: rfItemId || null,
       orderDate: new Date().toISOString()
@@ -1892,7 +1893,7 @@ async function loadCompGuests() {
       for (let rfQ = 1; rfQ <= rfQty; rfQ++) {
         const rfTicketKey = rfQty > 1 ? rfItemIdBase + '_' + rfQ : rfItemIdBase;
         const rfDisplayName = rfQty > 1 ? `${name} (Ticket ${rfQ} of ${rfQty})` : name;
-        addSheetBooking({ key: `rf-${i}-${rfQ}`, name: rfDisplayName, email, entryType: rfEntryType, guestType: 'Remenham Farm', hasLanyard: false, eventIds, ticketName: itemName||'Remenham Farm', isComp: false, isRemenham: true, rfItemId: rfTicketKey, source: 'sheet' });
+        addSheetBooking({ key: `rf-${i}-${rfQ}`, name: rfDisplayName, email, entryType: rfEntryType, guestType: 'Remenham Farm', hasLanyard: false, rfQty, rfTicketNum: rfQ, eventIds, ticketName: itemName||'Remenham Farm', isComp: false, isRemenham: true, rfItemId: rfTicketKey, source: 'sheet' });
         n++;
       }
       });
@@ -3877,7 +3878,10 @@ function renderEventCards() {
   const themeColors = {'Ladies Day':'#0050B3','Ibiza White Party':'var(--pink)','Studio 54':'#00A85A','Brunch on the Banks':'#C06000'};
 
   function renderStatCard(ev, col) {
-    const totalTickets    = ev.bookings.reduce((s,b) => s + b.tickets.length, 0);
+    // For RF bookings: use rfQty for ticket count, rfTicketNum===1 for booking count
+    const isRF = ev.bookings.length > 0 && ev.bookings[0].isRemenham;
+    const totalBookings   = isRF ? ev.bookings.filter(b => (b.rfTicketNum||1) === 1).length : ev.bookings.length;
+    const totalTickets    = isRF ? ev.bookings.reduce((s,b) => s + ((b.rfTicketNum||1)===1 ? (b.rfQty||1) : 0), 0) : ev.bookings.reduce((s,b) => s + b.tickets.length, 0);
     const admittedTickets = ev.bookings.reduce((s,b) => s + getBookingAdmittedCount(b), 0);
     const remaining       = totalTickets - admittedTickets;
     const pct             = totalTickets > 0 ? Math.round(admittedTickets / totalTickets * 100) : 0;
@@ -3889,7 +3893,7 @@ function renderEventCards() {
     return `<div class="ev-card">
   <div class="ev-card-header">
     <div class="ev-card-title" style="color:${col}">${shortTitle || ev.title}</div>
-    <div class="ev-card-sub">${ev.bookings.length} booking${ev.bookings.length!==1?'s':''} &middot; ${totalTickets} ticket${totalTickets!==1?'s':''}</div>
+    <div class="ev-card-sub">${totalBookings} booking${totalBookings!==1?'s':''} &middot; ${totalTickets} ticket${totalTickets!==1?'s':''}</div>
   </div>
   <div class="ev-card-stats">
     <div class="ev-stat"><div class="ev-stat-num" style="color:${col}">${admittedTickets}</div><div class="ev-stat-lbl">In</div></div>
