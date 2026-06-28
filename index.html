@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v9.9.12</title>
+<title>FD Door Scanner v9.9.13</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -614,7 +614,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v9.9.12 LIVE</div>
+    <div class="brand-sub">Door Scanner · v9.9.13 LIVE</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -630,7 +630,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v9.9.12 LIVE</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v9.9.13 LIVE</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -953,7 +953,7 @@ input::placeholder { color: #999; }
 // ═══════════════════════════════════════════
 //  AUTO-UPDATE CHECK
 // ═══════════════════════════════════════════
-const APP_VERSION = '9.9.12';
+const APP_VERSION = '9.9.13';
 (function checkForUpdate() {
   fetch(window.location.href.split('?')[0] + '?_v=' + Date.now(), { cache: 'no-store' })
     .then(r => r.text())
@@ -3836,15 +3836,24 @@ function renderEventCards() {
     eventMap[key].bookings.push(b);
   });
 
-  // Sort: MEC events first, then sheet categories
-  const sortOrder = ['🎫 Tickets — Ladies Day','🎫 Tickets — Ibiza White Party','🎫 Tickets — Studio 54','🎫 Tickets — Brunch on the Banks'];
+  // Sort: group by event theme, tickets first then guests/DJs/staff within each theme
+  const eventOrder = ['Ladies Day', 'Ibiza White Party', 'Studio 54', 'Brunch on the Banks'];
+  const categoryOrder = ['🎫 Tickets', '🎁 Guests', '🎧 DJs', '🎭 Entertainers', '👷 Staff', '🏡 RF'];
+  const timeOrder = ['Day', 'Evening', ''];
+
   const sortedKeys = Object.keys(eventMap).sort((a, b) => {
-    const ai = sortOrder.findIndex(s => a.startsWith(s));
-    const bi = sortOrder.findIndex(s => b.startsWith(s));
-    if (ai > -1 && bi > -1) return ai - bi;
-    if (ai > -1) return -1;
-    if (bi > -1) return 1;
-    return a.localeCompare(b);
+    // Get event index
+    const aEv = eventOrder.findIndex(e => a.includes(e));
+    const bEv = eventOrder.findIndex(e => b.includes(e));
+    if (aEv !== bEv) return (aEv === -1 ? 99 : aEv) - (bEv === -1 ? 99 : bEv);
+    // Same event — sort by category
+    const aCat = categoryOrder.findIndex(c => a.startsWith(c));
+    const bCat = categoryOrder.findIndex(c => b.startsWith(c));
+    if (aCat !== bCat) return (aCat === -1 ? 99 : aCat) - (bCat === -1 ? 99 : bCat);
+    // Same category — Day before Evening
+    const aTime = timeOrder.findIndex(t => t && a.endsWith(t));
+    const bTime = timeOrder.findIndex(t => t && b.endsWith(t));
+    return (aTime === -1 ? 99 : aTime) - (bTime === -1 ? 99 : bTime);
   });
   const sortedEventMap = {};
   sortedKeys.forEach(k => sortedEventMap[k] = eventMap[k]);
