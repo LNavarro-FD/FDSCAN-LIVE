@@ -77,6 +77,7 @@ var sentIds = {};
 function qrUrl(id) {
   return 'https://api.qrserver.com/v1/create-qr-code/?data=' + encodeURIComponent(APP_URL + '?rf=' + id) + '&size=400x400&margin=10';
 }
+function ticketQrUrl(t) { return qrUrl(t.ticketKey || t.itemId); }
 
 function evtName(s) {
   var n = (s||'').toLowerCase();
@@ -151,9 +152,24 @@ async function loadData() {
         lastName: (r[17]||'').trim(),
         name: [(r[16]||'').trim(),(r[17]||'').trim()].filter(Boolean).join(' '),
         email: (r[20]||'').trim().toLowerCase(),
-        itemName: (r[40]||'').trim()
+        itemName: (r[40]||'').trim(),
+        qty: parseInt(r[43]||'1') || 1
       };
     }).filter(function(t) { return t.itemId && t.name && t.email; });
+
+    // Expand tickets by quantity — one entry per ticket
+    var expanded = [];
+    allTickets.forEach(function(t) {
+      for (var q = 1; q <= t.qty; q++) {
+        var ticketKey = t.qty > 1 ? t.itemId + '_' + q : t.itemId;
+        expanded.push(Object.assign({}, t, {
+          ticketKey: ticketKey,
+          ticketNum: q,
+          displayName: t.qty > 1 ? t.name + ' (Ticket ' + q + ' of ' + t.qty + ')' : t.name
+        }));
+      }
+    });
+    allTickets = expanded;
 
     // Sort by surname then firstname
   allTickets.sort(function(a, b) {
@@ -161,7 +177,7 @@ async function loadData() {
     if (sA < sB) return -1; if (sA > sB) return 1;
     return a.firstName.toLowerCase().localeCompare(b.firstName.toLowerCase());
   });
-  var newOnes = allTickets.filter(function(t) { return !sentIds[t.itemId]; });
+  var newOnes = allTickets.filter(function(t) { return !sentIds[t.ticketKey || t.itemId]; });
     setStatus('Loaded ' + allTickets.length + ' tickets — ' + newOnes.length + ' new, ' + Object.keys(sentIds).length + ' already sent.', 'ok');
 
     document.getElementById('sTotal').textContent = allTickets.length;
@@ -204,7 +220,7 @@ async function generatePDFs() {
     if (sA < sB) return -1; if (sA > sB) return 1;
     return a.firstName.toLowerCase().localeCompare(b.firstName.toLowerCase());
   });
-  var newOnes = allTickets.filter(function(t) { return !sentIds[t.itemId]; });
+  var newOnes = allTickets.filter(function(t) { return !sentIds[t.ticketKey || t.itemId]; });
   if (!newOnes.length) return;
 
   document.getElementById('genBtn').disabled = true;
@@ -245,13 +261,13 @@ async function generatePDFs() {
       doc.setFillColor(247,247,251); doc.rect(0,63,W,20,'F');
       doc.setTextColor(34,34,76); doc.setFontSize(11); doc.setFont('helvetica','bold');
       doc.text('ENTRY TICKET', W/2, 76, {align:'center'});
-      doc.setFontSize(22); doc.text(t.name, W/2, 105, {align:'center'});
+      doc.setFontSize(22); doc.text(t.displayName || t.name, W/2, 105, {align:'center'});
       doc.setFontSize(13); doc.setFont('helvetica','normal'); doc.setTextColor(255,75,123);
       doc.text(evtName(t.itemName), W/2, 118, {align:'center'});
       doc.setFontSize(11); doc.setTextColor(100,100,120);
       doc.text(evtDate(t.itemName), W/2, 130, {align:'center'});
 
-      var qrData = await loadImg(qrUrl(t.itemId));
+      var qrData = await loadImg(ticketQrUrl(t));
       var qrSize = 110, qrX = (W-qrSize)/2, qrY = 140;
       doc.setFillColor(255,255,255); doc.roundedRect(qrX-5,qrY-5,qrSize+10,qrSize+10,4,4,'F');
       doc.setDrawColor(230,230,240); doc.roundedRect(qrX-5,qrY-5,qrSize+10,qrSize+10,4,4,'S');
@@ -267,7 +283,7 @@ async function generatePDFs() {
       doc.setTextColor(255,255,255); doc.setFontSize(8); doc.setFont('helvetica','normal');
       doc.text('funkydorylove.co.uk · @funkydorylove · Chic by Tradition, Funky by Nature', W/2, H-7, {align:'center'});
 
-      zip.file('RF_Ticket_' + t.name.replace(/[^a-z0-9]/gi,'_') + '.pdf', doc.output('arraybuffer'));
+      zip.file('RF_Ticket_' + (t.displayName || t.name).replace(/[^a-z0-9]/gi,'_') + '.pdf', doc.output('arraybuffer'));
     } catch(e) { console.warn('PDF failed for', t.name, e); }
   }
 
