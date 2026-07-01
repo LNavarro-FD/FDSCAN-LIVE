@@ -3557,14 +3557,16 @@ function setResult(state, icon, name, detail, pulse) {
   if (flash && state) {
     flash.className = '';
     void flash.offsetWidth; // force reflow to restart animation
-    if (state === 'ok')   // Special entry types get different flash colours
-      const specialEntry = mecGuest?.entryType || '';
-      if (specialEntry === 'VIP-No Food') {
-        flash.className = 'flash-pink';
-      } else if (specialEntry === 'VIP-1 Token') {
-        flash.className = 'flash-blue';
-      } else {
-        flash.className = 'flash-ok';
+    if (state === 'ok') {
+        // Special entry types get different flash colours
+        const specialEntry = (mecGuest && mecGuest.entryType) ? mecGuest.entryType : '';
+        if (specialEntry === 'VIP-No Food') {
+          flash.className = 'flash-pink';
+        } else if (specialEntry === 'VIP-1 Token') {
+          flash.className = 'flash-blue';
+        } else {
+          flash.className = 'flash-ok';
+        }
       }
     if (state === 'err')  flash.className = 'flash-err';
     if (state === 'warn') flash.className = 'flash-warn';
