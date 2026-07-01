@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v9.9.26</title>
+<title>FD Door Scanner v9.9.27</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -616,7 +616,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v9.9.26 LIVE</div>
+    <div class="brand-sub">Door Scanner · v9.9.27 LIVE</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -632,7 +632,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v9.9.26 LIVE</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v9.9.27 LIVE</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -955,7 +955,7 @@ input::placeholder { color: #999; }
 // ═══════════════════════════════════════════
 //  AUTO-UPDATE CHECK
 // ═══════════════════════════════════════════
-const APP_VERSION = '9.9.26';
+const APP_VERSION = '9.9.27';
 (function checkForUpdate() {
   fetch(window.location.href.split('?')[0] + '?_v=' + Date.now(), { cache: 'no-store' })
     .then(r => r.text())
@@ -3893,11 +3893,21 @@ function renderEventCards() {
   const themeColors = {'Ladies Day':'#0050B3','Ibiza White Party':'var(--pink)','Studio 54':'#00A85A','Brunch on the Banks':'#C06000'};
 
   function getTicketCategory(b) {
-    // For MEC/WC tickets use ticket name, for sheet use entryType
+    const et = (b.entryType || '').toUpperCase();
     const tn = (b.tickets && b.tickets[0] ? b.tickets[0].ticketName : b.eventTitle || '').toLowerCase();
-    const et = (b.entryType || '').toLowerCase();
-    if (et === 'vip' || tn.includes('vip')) return 'VIP';
-    if (et === 'evening' || tn.includes('evening') || tn.includes('access only')) return 'Evening';
+    // Special packages
+    if (et === 'VIP-NO FOOD') return 'VIP · No Food';
+    if (et === 'VIP-1 TOKEN') return 'VIP · 1 Token';
+    // Standard entry types from sheet
+    if (et === 'VIP') return 'VIP';
+    if (et === 'EVENING' || et === 'EVE') return 'Evening';
+    if (et === 'GE') return 'General Entry';
+    // Fall back to ticket name for MEC/WC
+    if (tn.includes('vip')) return 'VIP';
+    if (tn.includes('evening') || tn.includes('access only')) return 'Evening';
+    if (tn.includes('general') || tn.includes('admission')) return 'General Entry';
+    // Last resort - check isVip flag
+    if (b.isVip) return 'VIP';
     return 'General Entry';
   }
 
@@ -3910,7 +3920,7 @@ function renderEventCards() {
       cats[cat].tickets += tix;
       cats[cat].admitted += getBookingAdmittedCount(b);
     });
-    const order = ['VIP', 'General Entry', 'Evening'];
+    const order = ['VIP', 'VIP · No Food', 'VIP · 1 Token', 'General Entry', 'Evening'];
     const rows = order.filter(c => cats[c] && cats[c].tickets > 0).map(c => {
       const {tickets, admitted} = cats[c];
       const rem = tickets - admitted;
