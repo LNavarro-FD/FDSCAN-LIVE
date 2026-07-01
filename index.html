@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v9.9.23</title>
+<title>FD Door Scanner v9.9.24</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -292,6 +292,8 @@ input::placeholder { color: #999; }
 #scan-flash.flash-ok   { background: #00C875; animation: flash-ok  .45s ease-out forwards; }
 #scan-flash.flash-err  { background: #D0000A; animation: flash-err .45s ease-out forwards; }
 #scan-flash.flash-warn { background: #FF9500; animation: flash-warn 1.2s ease-out forwards; }
+#scan-flash.flash-pink { background: #FF4B7B; animation: flash-ok  .45s ease-out forwards; }
+#scan-flash.flash-blue { background: #0050B3; animation: flash-ok  .45s ease-out forwards; }
 
 /* ── Guest list ── */
 #guests-screen { display: flex; flex-direction: column; overflow: hidden; width: 100%; }
@@ -614,7 +616,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v9.9.23 LIVE</div>
+    <div class="brand-sub">Door Scanner · v9.9.24 LIVE</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -630,7 +632,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v9.9.23 LIVE</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v9.9.24 LIVE</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -953,7 +955,7 @@ input::placeholder { color: #999; }
 // ═══════════════════════════════════════════
 //  AUTO-UPDATE CHECK
 // ═══════════════════════════════════════════
-const APP_VERSION = '9.9.23';
+const APP_VERSION = '9.9.24';
 (function checkForUpdate() {
   fetch(window.location.href.split('?')[0] + '?_v=' + Date.now(), { cache: 'no-store' })
     .then(r => r.text())
@@ -3553,7 +3555,15 @@ function setResult(state, icon, name, detail, pulse) {
   if (flash && state) {
     flash.className = '';
     void flash.offsetWidth; // force reflow to restart animation
-    if (state === 'ok')   flash.className = 'flash-ok';
+    if (state === 'ok')   // Special entry types get different flash colours
+      const specialEntry = mecGuest?.entryType || '';
+      if (specialEntry === 'VIP-No Food') {
+        flash.className = 'flash-pink';
+      } else if (specialEntry === 'VIP-1 Token') {
+        flash.className = 'flash-blue';
+      } else {
+        flash.className = 'flash-ok';
+      }
     if (state === 'err')  flash.className = 'flash-err';
     if (state === 'warn') flash.className = 'flash-warn';
     if (state === 'tm')   flash.className = 'flash-warn';
