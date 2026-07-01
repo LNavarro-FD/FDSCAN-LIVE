@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#22224C">
-<title>FD Door Scanner v9.9.22</title>
+<title>FD Door Scanner v9.9.26</title>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
@@ -292,6 +292,8 @@ input::placeholder { color: #999; }
 #scan-flash.flash-ok   { background: #00C875; animation: flash-ok  .45s ease-out forwards; }
 #scan-flash.flash-err  { background: #D0000A; animation: flash-err .45s ease-out forwards; }
 #scan-flash.flash-warn { background: #FF9500; animation: flash-warn 1.2s ease-out forwards; }
+#scan-flash.flash-pink { background: #FF4B7B; animation: flash-ok  .45s ease-out forwards; }
+#scan-flash.flash-blue { background: #0050B3; animation: flash-ok  .45s ease-out forwards; }
 
 /* ── Guest list ── */
 #guests-screen { display: flex; flex-direction: column; overflow: hidden; width: 100%; }
@@ -614,7 +616,7 @@ input::placeholder { color: #999; }
 <header id="main-header" class="hidden">
   <div>
     <div class="brand-name">Funky Dory</div>
-    <div class="brand-sub">Door Scanner · v9.9.22 LIVE</div>
+    <div class="brand-sub">Door Scanner · v9.9.26 LIVE</div>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-dot" class="sync-dot" title="Sync status"></span>
@@ -630,7 +632,7 @@ input::placeholder { color: #999; }
   <div style="padding:28px 22px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;flex:1;background:var(--bg);">
     <div>
       <div class="brand-name" style="font-size:24px;">Funky Dory</div>
-      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v9.9.22 LIVE</div>
+      <div class="brand-sub" style="font-size:11px;margin-top:4px;color:var(--navy);opacity:.7;">Door Scanner · v9.9.26 LIVE</div>
     </div>
 
     <!-- QR Login — preferred method -->
@@ -953,7 +955,7 @@ input::placeholder { color: #999; }
 // ═══════════════════════════════════════════
 //  AUTO-UPDATE CHECK
 // ═══════════════════════════════════════════
-const APP_VERSION = '9.9.22';
+const APP_VERSION = '9.9.26';
 (function checkForUpdate() {
   fetch(window.location.href.split('?')[0] + '?_v=' + Date.now(), { cache: 'no-store' })
     .then(r => r.text())
@@ -3108,6 +3110,8 @@ async function lookupTicket(code) {
             const now = new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
             const detail = [
               mecGuest.isVip ? '⭐ VIP' : null,
+              (mecGuest.entryType === 'VIP-No Food' || mecGuest.entryType === 'VIP-1 Token') ? '🍾 Drinks Package' : null,
+              mecGuest.entryType === 'VIP-No Food' ? '🚫 No Food Tokens' : mecGuest.entryType === 'VIP-1 Token' ? '1️⃣ 1 Food Token' : null,
               mecGuest.ticketName && mecGuest.ticketName !== 'MEC Ticket' ? mecGuest.ticketName : null,
               now
             ].filter(Boolean).join('  ·  ');
@@ -3553,7 +3557,15 @@ function setResult(state, icon, name, detail, pulse) {
   if (flash && state) {
     flash.className = '';
     void flash.offsetWidth; // force reflow to restart animation
-    if (state === 'ok')   flash.className = 'flash-ok';
+    if (state === 'ok')   // Special entry types get different flash colours
+      const specialEntry = mecGuest?.entryType || '';
+      if (specialEntry === 'VIP-No Food') {
+        flash.className = 'flash-pink';
+      } else if (specialEntry === 'VIP-1 Token') {
+        flash.className = 'flash-blue';
+      } else {
+        flash.className = 'flash-ok';
+      }
     if (state === 'err')  flash.className = 'flash-err';
     if (state === 'warn') flash.className = 'flash-warn';
     if (state === 'tm')   flash.className = 'flash-warn';
@@ -3880,6 +3892,47 @@ function renderEventCards() {
   const themes = ['Ladies Day','Ibiza White Party','Studio 54','Brunch on the Banks'];
   const themeColors = {'Ladies Day':'#0050B3','Ibiza White Party':'var(--pink)','Studio 54':'#00A85A','Brunch on the Banks':'#C06000'};
 
+  function getTicketCategory(b) {
+    // For MEC/WC tickets use ticket name, for sheet use entryType
+    const tn = (b.tickets && b.tickets[0] ? b.tickets[0].ticketName : b.eventTitle || '').toLowerCase();
+    const et = (b.entryType || '').toLowerCase();
+    if (et === 'vip' || tn.includes('vip')) return 'VIP';
+    if (et === 'evening' || tn.includes('evening') || tn.includes('access only')) return 'Evening';
+    return 'General Entry';
+  }
+
+  function renderBreakdown(bookings, isRF, col) {
+    const cats = {};
+    bookings.forEach(b => {
+      const cat = getTicketCategory(b);
+      if (!cats[cat]) cats[cat] = { tickets: 0, admitted: 0 };
+      const tix = isRF ? ((b.rfTicketNum||1)===1 ? (b.rfQty||1) : 0) : b.tickets.length;
+      cats[cat].tickets += tix;
+      cats[cat].admitted += getBookingAdmittedCount(b);
+    });
+    const order = ['VIP', 'General Entry', 'Evening'];
+    const rows = order.filter(c => cats[c] && cats[c].tickets > 0).map(c => {
+      const {tickets, admitted} = cats[c];
+      const rem = tickets - admitted;
+      return `<tr>
+        <td style="padding:3px 8px;font-size:11px;color:#555">${c}</td>
+        <td style="padding:3px 8px;font-size:11px;text-align:center;color:${col}">${admitted}</td>
+        <td style="padding:3px 8px;font-size:11px;text-align:center;font-weight:700">${rem}</td>
+        <td style="padding:3px 8px;font-size:11px;text-align:center;color:#888">${tickets}</td>
+      </tr>`;
+    }).join('');
+    if (!rows) return '';
+    return `<table style="width:100%;border-collapse:collapse;margin-top:8px;border-top:1px solid #eee">
+      <tr style="background:#f5f5f7">
+        <th style="padding:3px 8px;font-size:10px;text-align:left;color:#888;font-weight:600">TYPE</th>
+        <th style="padding:3px 8px;font-size:10px;text-align:center;color:#888;font-weight:600">IN</th>
+        <th style="padding:3px 8px;font-size:10px;text-align:center;color:#888;font-weight:600">REM</th>
+        <th style="padding:3px 8px;font-size:10px;text-align:center;color:#888;font-weight:600">TOTAL</th>
+      </tr>
+      ${rows}
+    </table>`;
+  }
+
   function renderStatCard(ev, col) {
     // For RF bookings: use rfQty for ticket count, rfTicketNum===1 for booking count
     const isRF = ev.bookings.length > 0 && ev.bookings[0].isRemenham;
@@ -3893,6 +3946,7 @@ function renderEventCards() {
       .replace(/during henley\s*(royal\s*)?regatta\s*/i,'')
       .replace(/meets\s*/i,'\u00d7 ').replace(/\s*[-\u2013]\s*\d{2}[./]\d{2}([./]\d{2,4})?/g,'')
       .replace(/\(SCAN TEST[^)]*\)/i,'').replace(/\s{2,}/g,' ').trim();
+    const breakdown = renderBreakdown(ev.bookings, isRF, col);
     return `<div class="ev-card">
   <div class="ev-card-header">
     <div class="ev-card-title" style="color:${col}">${shortTitle || ev.title}</div>
@@ -3904,6 +3958,7 @@ function renderEventCards() {
     <div class="ev-stat"><div class="ev-stat-num" style="color:${col}">${pct}%</div><div class="ev-stat-lbl">Admitted</div></div>
   </div>
   <div class="ev-progress-wrap"><div class="ev-progress-bar" style="width:${pct}%;background:${col}"></div></div>
+  ${breakdown}
 </div>`;
   }
 
